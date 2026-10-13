@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zero Gap Agent</title>
+<style>
+  :root{
+    --ink:#0f1b2d; --ink2:#334155; --muted:#64748b; --line:#e2e8f0; --bg:#f4f6fa; --card:#fff;
+    --brand:#1f4e79; --brand2:#2e6fa8; --brand-soft:#e8eff7;
+    --aris:#0f766e; --aris-soft:#e6f4f2; --zero:#b45309; --zero-soft:#fdf3e7;
+    --ok:#067647; --ok-soft:#ecfdf3; --bad:#b42318; --bad-soft:#fef3f2; --warn:#b54708; --warn-soft:#fffaeb;
+    --r:16px; --shadow:0 1px 2px rgba(15,27,45,.06),0 8px 24px rgba(15,27,45,.06);
+  }
+  *{box-sizing:border-box} html,body{margin:0}
+  body{font-family:Inter,"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+  a{color:inherit}
+  /* ---------- hero */
+  .hero{position:relative;overflow:hidden;color:#fff;background:radial-gradient(1200px 500px at 85% -20%,#3b82c4 0%,transparent 60%),
+        radial-gradient(800px 400px at -10% 120%,#0f766e 0%,transparent 55%),linear-gradient(135deg,#0d2a47 0%,#143d63 55%,#1f4e79 100%)}
+  .hero::after{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);
+        background-size:44px 44px;mask-image:linear-gradient(180deg,rgba(0,0,0,.7),transparent 85%);pointer-events:none}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+  .nav{display:flex;align-items:center;gap:12px;padding:20px 0;position:relative;z-index:1}
+  .mark{width:36px;height:36px;border-radius:10px;background:#fff;color:var(--brand);display:grid;place-items:center;font-weight:800;font-size:14px;letter-spacing:.5px}
+  .nav b{font-size:15px;letter-spacing:.2px} .nav .sp{flex:1}
+  .pill{white-space:nowrap;display:inline-flex;align-items:center;gap:8px;font-size:12.5px;padding:7px 12px;border-radius:999px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18)}
+  .dot{width:8px;height:8px;border-radius:50%;background:#34d399;box-shadow:0 0 0 0 rgba(52,211,153,.7);animation:pulse 2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(52,211,153,.6)}70%{box-shadow:0 0 0 10px rgba(52,211,153,0)}100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}}
+  .hero-body{position:relative;z-index:1;padding:18px 0 116px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .eyebrow{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#a5c8ea;font-weight:600}
+  h1{font-size:46px;line-height:1.05;margin:12px 0 14px;letter-spacing:-1px;font-weight:800}
+  h1 span{background:linear-gradient(90deg,#7dd3fc,#5eead4);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lead{font-size:17px;line-height:1.6;color:#d6e4f2;max-width:600px;margin:0}
+  .hero-kpis{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .hk{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:14px;padding:16px;backdrop-filter:blur(6px)}
+  .hk .n{font-size:30px;font-weight:800;letter-spacing:-.5px} .hk .l{font-size:12.5px;color:#cfe0f1;margin-top:2px}
+  /* ---------- agent cards */
+  .agents{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:-84px;position:relative;z-index:2}
+  .agent{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);border:1px solid var(--line);padding:26px;display:flex;flex-direction:column;gap:16px;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s}
+  .agent:hover{transform:translateY(-3px);box-shadow:0 2px 4px rgba(15,27,45,.06),0 16px 40px rgba(15,27,45,.12)}
+  .agent::before{content:"";position:absolute;left:0;top:0;right:0;height:5px;background:var(--acc)}
+  .agent.aris{--acc:var(--aris);--acc-soft:var(--aris-soft)} .agent.zero{--acc:var(--zero);--acc-soft:var(--zero-soft)}
+  .ah{display:flex;align-items:flex-start;gap:14px}
+  .ic{width:46px;height:46px;border-radius:12px;background:var(--acc-soft);color:var(--acc);display:grid;place-items:center;flex:none}
+  .ah h2{margin:0;font-size:20px;letter-spacing:-.2px} .ah p{margin:4px 0 0;color:var(--muted);font-size:14px;line-height:1.5}
+  .tag{margin-left:auto;font-size:11.5px;font-weight:600;padding:5px 10px;border-radius:999px;background:var(--acc-soft);color:var(--acc);white-space:nowrap}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .st{background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:12px}
+  .st .n{font-size:24px;font-weight:800;letter-spacing:-.4px} .st .l{font-size:11.5px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.4px}
+  .st.hl .n{color:var(--acc)}
+  .feat{display:flex;flex-wrap:wrap;gap:8px}
+  .feat span{font-size:12.5px;padding:6px 10px;border-radius:8px;background:#f1f5f9;color:var(--ink2)}
+  .feat span.bad{background:var(--bad-soft);color:var(--bad)} .feat span.good{background:var(--ok-soft);color:var(--ok)}
+  .go{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto;padding-top:4px}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 16px;border-radius:10px;font-weight:600;font-size:14px;text-decoration:none;background:var(--acc);color:#fff;border:1px solid var(--acc);transition:filter .15s}
+  .btn:hover{filter:brightness(1.08)} .btn.ghost{background:#fff;color:var(--brand);border-color:var(--line)}
+  .go small{color:var(--muted);font-size:12.5px}
+  /* ---------- sections */
+  section{margin-top:34px} .sh{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 14px}
+  .sh h3{margin:0;font-size:18px;letter-spacing:-.2px} .sh span{color:var(--muted);font-size:13px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:0;padding:8px}
+  .s{padding:18px 18px 20px;position:relative}
+  .s:not(:last-child)::after{content:"";position:absolute;right:0;top:22px;bottom:22px;width:1px;background:var(--line)}
+  .s .k{width:30px;height:30px;border-radius:50%;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center;font-weight:800;font-size:13px}
+  .s h4{margin:12px 0 6px;font-size:15px} .s p{margin:0;color:var(--muted);font-size:13.5px;line-height:1.55}
+  .grid2{display:grid;grid-template-columns:1.4fr .6fr;gap:22px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:600;padding:12px 18px;border-bottom:1px solid var(--line)}
+  td{padding:13px 18px;border-bottom:1px solid #f1f5f9;vertical-align:middle} tr:last-child td{border-bottom:0}
+  tr.row{cursor:pointer} tr.row:hover td{background:#f8fafc}
+  .who b{display:block} .who small{color:var(--muted)}
+  .chip{display:inline-block;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;white-space:nowrap}
+  .c-ok{background:var(--ok-soft);color:var(--ok)} .c-bad{background:var(--bad-soft);color:var(--bad)} .c-wait{background:var(--warn-soft);color:var(--warn)} .c-run{background:var(--brand-soft);color:var(--brand)}
+  .ag{font-size:12px;font-weight:600;padding:3px 8px;border-radius:6px} .ag.aris{background:var(--aris-soft);color:var(--aris)} .ag.zero{background:var(--zero-soft);color:var(--zero)}
+  .empty{padding:34px;text-align:center;color:var(--muted);font-size:14px}
+  .side{padding:22px;display:flex;flex-direction:column;gap:14px}
+  .side h4{margin:0;font-size:15px} .side p{margin:0;color:var(--muted);font-size:13.5px;line-height:1.55}
+  .dl{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;text-decoration:none;transition:border-color .15s,background .15s}
+  .dl:hover{border-color:#c7d7ea;background:#f8fbff} .dl .di{width:36px;height:36px;border-radius:9px;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center;flex:none}
+  .dl b{display:block;font-size:14px} .dl small{color:var(--muted);font-size:12.5px}
+  .upl{display:none} .upl.on{display:flex}
+  footer{color:var(--muted);font-size:12.5px;padding:34px 0 40px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .toast{position:fixed;right:22px;bottom:22px;background:var(--ink);color:#fff;padding:12px 16px;border-radius:10px;opacity:0;transform:translateY(10px);transition:.25s;font-size:14px;z-index:9}
+  .toast.show{opacity:1;transform:none}
+  @media (max-width:980px){.hero-body{grid-template-columns:1fr 1fr}.agents,.grid2{grid-template-columns:1fr}.agents{margin-top:-60px}.steps{grid-template-columns:1fr 1fr}.s:nth-child(2)::after{display:none}h1{font-size:36px}}
+  @media (max-width:560px){.nav b{display:none}.ah .tag{display:none}.stats{grid-template-columns:1fr 1fr}.steps{grid-template-columns:1fr}.s::after{display:none}.wrap{padding:0 16px}td,th{padding:11px 12px}.hide-sm{display:none}}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="nav"><div class="mark">ZG</div><b>Zero Gap Agent</b><span class="sp"></span>
+      <span class="pill"><span class="dot"></span><span id="live">Connecting…</span></span></div>
+    <div class="hero-body">
+      <div class="hk"><div class="n" id="kTotal">–</div><div class="l">Applications checked</div></div>
+      <div class="hk"><div class="n" id="kWait">–</div><div class="l">Waiting for your review</div></div>
+      <div class="hk"><div class="n" id="kEsc">–</div><div class="l">Escalated to Case Manager</div></div>
+      <div class="hk"><div class="n" id="kWrong">–</div><div class="l">Wrong-person matches (no context)</div></div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="agents">
+    <article class="agent aris">
+      <div class="ah"><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z"/><path d="M9 12l2 2 4-4"/></svg></div>
+        <div><h2>Agent with ARIS context</h2><p>Reads SOPs and the latest policy amendments from ARIS and finds the applicant by exact insurance number.</p></div>
+        <span class="tag">Governed</span></div>
+      <div class="stats">
+        <div class="st"><div class="n" data-a="aris" data-k="total">–</div><div class="l">Checked</div></div>
+        <div class="st hl"><div class="n" data-a="aris" data-k="waiting">–</div><div class="l">In review</div></div>
+        <div class="st"><div class="n" data-a="aris" data-k="escalation">–</div><div class="l">Escalations</div></div>
+        <div class="st"><div class="n" data-a="aris" data-k="risks">–</div><div class="l">Risks hit</div></div>
+      </div>
+      <div class="feat"><span class="good">Exact insurance-number match</span><span class="good" id="amendTag">Policy amendments applied</span><span class="good">Only required items requested</span></div>
+      <div class="go"><a class="btn" href="/portal/aris">Open portal <span>→</span></a><small id="arisNote"></small></div>
+    </article>
+    <article class="agent zero">
+      <div class="ah"><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg></div>
+        <div><h2>Agent with zero context</h2><p>Reads old SOP copies from a shared drive and searches the event log by name – what an agent without governed context does.</p></div>
+        <span class="tag">Ungoverned</span></div>
+      <div class="stats">
+        <div class="st"><div class="n" data-a="zero" data-k="total">–</div><div class="l">Checked</div></div>
+        <div class="st hl"><div class="n" data-a="zero" data-k="waiting">–</div><div class="l">In review</div></div>
+        <div class="st"><div class="n" data-a="zero" data-k="wrong_person">–</div><div class="l">Wrong person</div></div>
+        <div class="st"><div class="n" data-a="zero" data-k="risks">–</div><div class="l">Risks hit</div></div>
+      </div>
+      <div class="feat"><span class="bad">Name search – namesakes mixed up</span><span class="bad">Guessed values</span><span class="bad">Unnecessary documents</span></div>
+      <div class="go"><a class="btn" href="/portal/zero">Open portal <span>→</span></a><small id="zeroNote"></small></div>
+    </article>
+  </div>
+
+  <section>
+    <div class="sh"><h3>How it works</h3><span>Nothing reaches the applicant without a caseworker</span></div>
+    <div class="card steps">
+      <div class="s"><div class="k">1</div><h4>Application arrives</h4><p>The form comes in by e-mail and both agents start at once.</p></div>
+      <div class="s"><div class="k">2</div><h4>Documents &amp; rules</h4><p>Case documents, SOPs and policies are read – from ARIS, or from a shared drive.</p></div>
+      <div class="s"><div class="k">3</div><h4>Check &amp; decide</h4><p>Missing items, legal deadlines and the next step: letter, escalation or release.</p></div>
+      <div class="s"><div class="k">4</div><h4>You approve</h4><p>Review the draft, then send it by e-mail or print it for the post.</p></div>
+    </div>
+  </section>
+
+  <section class="grid2">
+    <div>
+      <div class="sh"><h3>Latest applications</h3><span id="upd"></span></div>
+      <div class="card" style="overflow:hidden">
+        <table><thead><tr><th>Applicant</th><th>Agent</th><th class="hide-sm">Next step</th><th>Status</th></tr></thead>
+          <tbody id="recent"><tr><td colspan="4" class="empty">Loading…</td></tr></tbody></table>
+      </div>
+    </div>
+    <div>
+      <div class="sh"><h3>Tools</h3><span></span></div>
+      <div class="card side">
+        <label class="dl upl" id="upl" style="cursor:pointer"><div class="di">⬆</div><div><b>New application</b><small>Upload a form PDF – both agents start</small></div>
+          <input type="file" id="file" accept="application/pdf" hidden></label>
+        <a class="dl" href="/api/export/event-log.csv"><div class="di">⇣</div><div><b>Event log (CSV)</b><small>Every step of every run – for ARIS Process Mining</small></div></a>
+        <a class="dl" href="/api/export/cases.csv"><div class="di">⇣</div><div><b>Case results (CSV)</b><small>One row per run with the KPI fields</small></div></a>
+        <p id="backend"></p>
+      </div>
+    </div>
+  </section>
+
+  <footer><span>Zero Gap Agent · care application intake</span><span id="gen"></span></footer>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const ftime = iso => iso ? new Date(iso).toLocaleString([], {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}) : '';
+  const toast = t => { const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 3500); };
+  const STEP = { escalation: 'Escalation', letter: 'Letter', none: 'Release for assessment' };
+  function chip(c) {
+    if (c.decision === 'approved') return '<span class="chip c-ok">Approved</span>';
+    if (c.decision === 'rejected') return '<span class="chip c-bad">Rejected</span>';
+    if (c.status === 'waiting') return '<span class="chip c-wait">Awaiting review</span>';
+    if (c.status === 'error' || c.status === 'crashed') return '<span class="chip c-bad">Error</span>';
+    if (c.status === 'success') return '<span class="chip c-ok">Done</span>';
+    return '<span class="chip c-run">Processing</span>';
+  }
+  function count(el, to) {
+    const from = Number(el.dataset.v || 0); el.dataset.v = to;
+    if (from === to) { el.textContent = to; return; }
+    const t0 = performance.now();
+    const tick = t => { const p = Math.min(1, (t - t0) / 600); el.textContent = Math.round(from + (to - from) * (1 - Math.pow(1 - p, 3))); if (p < 1) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  }
+  async function load() {
+    try {
+      const d = await (await fetch('/api/summary', { cache: 'no-store' })).json();
+      const A = d.agents.aris, Z = d.agents.zero;
+      count($('#kTotal'), A.total + Z.total); count($('#kWait'), A.waiting + Z.waiting);
+      count($('#kEsc'), A.escalation); count($('#kWrong'), Z.wrong_person);
+      document.querySelectorAll('[data-a]').forEach(el => count(el, (d.agents[el.dataset.a] || {})[el.dataset.k] || 0));
+      $('#amendTag').textContent = A.amendments ? `${A.amendments} policy amendments applied` : 'Policy amendments applied';
+      $('#arisNote').textContent = A.error_text ? '⚠ ' + A.error_text : `${A.approved} approved · ${A.rejected} rejected`;
+      $('#zeroNote').textContent = Z.error_text ? '⚠ ' + Z.error_text : `${Z.approved} approved · ${Z.rejected} rejected`;
+      $('#recent').innerHTML = d.recent.length ? d.recent.map(c => `<tr class="row" data-href="/portal/${c.agent}">
+          <td class="who"><b>${esc(c.name)}</b><small>${esc(c.ref)}${c.ref ? ' · ' : ''}${esc(ftime(c.started_at))}</small></td>
+          <td><span class="ag ${c.agent}">${c.agent === 'aris' ? 'ARIS context' : 'Zero context'}</span></td>
+          <td class="hide-sm">${esc(STEP[c.route] || '–')}</td><td>${chip(c)}</td></tr>`).join('')
+        : '<tr><td colspan="4" class="empty">No applications yet.</td></tr>';
+      document.querySelectorAll('tr.row').forEach(r => r.onclick = () => location.href = r.dataset.href);
+      $('#upl').classList.toggle('on', !!d.upload);
+      $('#backend').textContent = d.backend === 'n8n' ? `Agents run in n8n (${d.n8n_url}).` : 'Agents run in this app.';
+      $('#live').textContent = 'Live · ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+      $('#gen').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    } catch (e) { $('#live').textContent = 'Offline – retrying'; }
+  }
+  $('#file').addEventListener('change', async ev => {
+    const f = ev.target.files[0]; if (!f) return;
+    const fd = new FormData(); fd.append('file', f); toast('Uploading ' + f.name + ' …');
+    try { const r = await fetch('/api/upload', { method: 'POST', body: fd }); const j = await r.json(); if (!r.ok) throw new Error(j.detail || r.statusText); toast('Both agents started'); load(); }
+    catch (e) { toast('Upload failed: ' + e.message); }
+    ev.target.value = '';
+  });
+  load(); setInterval(load, 5000);
+})();
+</script>
+</body>
+</html>

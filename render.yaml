@@ -1,0 +1,24 @@
+# Render Blueprint – free web service. Dashboard → New → Blueprint → pick this repo.
+services:
+  - type: web
+    name: zerogap-portal
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn portal.server:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/config
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: N8N_URL
+        value: https://n8n.sofiatechnology.ai
+      - key: N8N_API_KEY
+        sync: false
+      - key: N8N_WORKFLOW_ARIS
+        sync: false
+      - key: N8N_WORKFLOW_ZERO
+        sync: false
+      - key: PORTAL_USER
+        sync: false
+      - key: PORTAL_PASSWORD
+        sync: false

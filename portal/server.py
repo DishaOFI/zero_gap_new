@@ -1,0 +1,176 @@
+"""Caseworker portal: home page, one portal per agent, Approve / Reject, printable letter, CSV exports.
+All data comes from the n8n API – nothing is stored here."""
+from __future__ import annotations
+import base64, csv, datetime as dt, html, io, secrets, time, traceback
+from pathlib import Path
+
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse, Response
+
+from .n8n import N8nBackend
+from .settings import settings
+from .view import portal_view
+
+HERE = Path(__file__).parent
+N8N = N8nBackend(settings)
+LABEL = {'aris': 'Agent with ARIS context', 'zero': 'Agent with zero context'}
+app = FastAPI(title='Zero Gap Agent – Portal')
+
+
+@app.middleware('http')
+async def basic_auth(request: Request, call_next):
+    """Browser login when PORTAL_USER and PORTAL_PASSWORD are set (the health check stays open)."""
+    if settings.portal_user and settings.portal_password and request.url.path != '/api/config':
+        try:
+            scheme, _, cred = request.headers.get('authorization', '').partition(' ')
+            user, _, pw = base64.b64decode(cred).decode().partition(':')
+        except Exception:  # noqa: BLE001
+            scheme, user, pw = '', '', ''
+        if not (scheme.lower() == 'basic' and secrets.compare_digest(user, settings.portal_user)
+                and secrets.compare_digest(pw, settings.portal_password)):
+            return Response('Login required', status_code=401, headers={'WWW-Authenticate': 'Basic realm="Zero Gap Portal"'})
+    return await call_next(request)
+
+
+def _now() -> str:
+    return time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+
+
+def _all_runs(limit: int):
+    out = []
+    for agent in ('aris', 'zero'):
+        try:
+            out += N8N.runs(agent, limit)
+        except Exception:  # noqa: BLE001
+            traceback.print_exc()
+    return sorted(out, key=lambda x: str(x[0].get('started_at') or ''), reverse=True)
+
+
+def _outputs(steps):
+    return {s['node']: s['output'] for s in steps if s.get('output') is not None}
+
+
+# ------------------------------------------------------------------ pages
+@app.get('/', response_class=HTMLResponse)
+def home():
+    return HTMLResponse((HERE / 'home.html').read_text(encoding='utf-8'))
+
+
+@app.get('/portal/{agent}', response_class=HTMLResponse)
+def portal(agent: str):
+    if agent not in ('aris', 'zero'):
+        raise HTTPException(404)
+    return HTMLResponse((HERE / 'portal.html').read_text(encoding='utf-8'))
+
+
+@app.get('/print/{agent}/{run_id}', response_class=HTMLResponse)
+def print_letter(agent: str, run_id: str):
+    case = next((c for c in portal_view(N8N, agent, 50)['cases'] if c['id'] == run_id), None)
+    r = (case or {}).get('review') or {}
+    if not r.get('letter'):
+        raise HTTPException(404, 'No letter for this case.')
+    return HTMLResponse(f"""<!doctype html><html><head><meta charset="utf-8"><title>Letter {html.escape(run_id)}</title>
+<style>body{{font-family:Georgia,'Times New Roman',serif;max-width:680px;margin:48px auto;font-size:14px;line-height:1.6;white-space:pre-wrap}}</style></head>
+<body onload="window.print()">{html.escape(r['letter'])}</body></html>""")
+
+
+# ------------------------------------------------------------------ API used by the pages
+@app.get('/api/config')
+def api_config():
+    return {'backend': 'n8n', 'upload': False}
+
+
+@app.get('/api/portal/{agent}')
+def api_portal(agent: str):
+    try:
+        view = portal_view(N8N, agent)
+    except Exception as e:  # noqa: BLE001
+        view = {'generated_at': _now(), 'cases': [], 'error': str(e)}
+    return JSONResponse(view, headers={'Cache-Control': 'no-store'})
+
+
+@app.post('/api/runs/{run_id}/decision')
+def api_decide(run_id: str, decision: str, channel: str | None = None):
+    try:
+        N8N.resume(run_id, 'approve' if decision == 'approve' else 'reject', channel)
+    except RuntimeError as e:
+        raise HTTPException(409, str(e))
+    return {'decision': decision, 'channel': channel}
+
+
+@app.get('/api/summary')
+def api_summary():
+    agents, recent = {}, []
+    for agent in ('aris', 'zero'):
+        try:
+            cases, err = portal_view(N8N, agent, 50)['cases'], None
+        except Exception as e:  # noqa: BLE001
+            cases, err = [], str(e)
+        st = {'total': len(cases), 'running': 0, 'waiting': 0, 'approved': 0, 'rejected': 0, 'error': 0,
+              'escalation': 0, 'letter': 0, 'ready': 0, 'wrong_person': 0, 'risks': 0, 'amendments': 0, 'error_text': err}
+        for c in cases:
+            r = c.get('review') or {}
+            if c.get('decision') in ('approved', 'rejected'):
+                st[c['decision']] += 1
+            elif c['status'] == 'waiting':
+                st['waiting'] += 1
+            elif c['status'] in ('error', 'crashed'):
+                st['error'] += 1
+            elif c['status'] in ('running', 'new'):
+                st['running'] += 1
+            key = {'escalation': 'escalation', 'none': 'ready', 'letter': 'letter'}.get(r.get('route'))
+            if key:
+                st[key] += 1
+            risks = r.get('risks') or []
+            st['risks'] += sum(1 for x in risks if x.get('occurred'))
+            st['wrong_person'] += sum(1 for x in risks if x.get('id') == 'C1' and x.get('occurred'))
+            st['amendments'] = max(st['amendments'], len(((r.get('policy') or {}).get('amendments')) or []))
+            recent.append({'agent': agent, 'id': c['id'], 'name': c.get('applicant_name') or 'New application', 'ref': c.get('insurance_number') or '',
+                           'status': c['status'], 'decision': c.get('decision'), 'started_at': c.get('started_at'),
+                           'final_status': r.get('final_status'), 'route': r.get('route')})
+        agents[agent] = st
+    recent.sort(key=lambda x: str(x['started_at'] or ''), reverse=True)
+    return JSONResponse({'generated_at': _now(), 'backend': 'n8n', 'n8n_url': settings.n8n_url, 'upload': False,
+                         'agents': agents, 'recent': recent[:10]}, headers={'Cache-Control': 'no-store'})
+
+
+# ------------------------------------------------------------------ exports for ARIS Process Mining
+@app.get('/api/export/event-log.csv')
+def export_event_log():
+    buf = io.StringIO(); w = csv.writer(buf)
+    w.writerow(['Case_ID', 'Agent', 'Insured_Person_ID', 'Applicant', 'Activity', 'Start_Timestamp', 'End_Timestamp', 'Duration_ms', 'Status'])
+    for r, steps in reversed(_all_runs(250)):
+        a = (_outputs(steps).get('Build Case File') or [{}])[0].get('applicant') or {}
+        who = ' '.join(x for x in [a.get('first_name'), a.get('last_name')] if x)
+        for s in steps:
+            t0 = dt.datetime.fromtimestamp((s['started_ms'] or 0) / 1000, dt.timezone.utc)
+            t1 = t0 + dt.timedelta(milliseconds=s['duration_ms'] or 0)
+            w.writerow([f"{r['agent'].upper()}-{r['id']}", LABEL[r['agent']], a.get('insurance_number') or '', who, s['node'],
+                        t0.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3], t1.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3], s['duration_ms'], 'error' if s.get('error') else 'ok'])
+    return Response(buf.getvalue(), media_type='text/csv', headers={'Content-Disposition': 'attachment; filename="zero_gap_event_log.csv"'})
+
+
+@app.get('/api/export/cases.csv')
+def export_cases():
+    buf = io.StringIO(); w = csv.writer(buf)
+    w.writerow(['Agent_Run_ID', 'Agent', 'Insured_Person_ID', 'Applicant', 'Status', 'Started', 'Finished', 'Final_Status', 'Agent_Next_Step',
+                'Person_Match_Result', 'Matched_Insured_Person_ID', 'Namesakes_Found', 'Items_Requested_Count', 'Unnecessary_Items_Requested',
+                'Values_Copied_From_Other_Person', 'Values_Invented', 'Record_Fields_Overwritten', 'Days_Left_Shown', 'Policy_Amendments_Applied',
+                'Risks_Occurred', 'Caseworker_Decision'])
+    for r, steps in reversed(_all_runs(250)):
+        outs = _outputs(steps)
+        o = (outs.get('Zero-Context Agent' if r['agent'] == 'zero' else 'Compliance Controls (ARIS)') or [{}])[0]
+        a = o.get('applicant') or {}
+        nl, zc = o.get('name_lookup') or {}, o.get('zero_context') or {}
+        risks = (o.get('risk_register') or {}).get('risks') or []
+        rw = zc.get('record_write') or {}
+        nxt = {'escalation': 'Escalation to Case Manager', 'letter': 'Missing-information letter', 'none': 'Ready for assessment'}.get(o.get('route'), '')
+        match = '' if not o else 'Correct person' if r['agent'] == 'aris' else 'No match' if not nl.get('chosen_id') else 'Wrong person' if nl.get('id_differs') else 'Correct person'
+        decision = 'approved' if 'APPROVED: Release for Dispatch' in outs else 'rejected' if 'REJECTED: Manual Handling' in outs else ''
+        w.writerow([f"{r['agent'].upper()}-{r['id']}", LABEL[r['agent']], a.get('insurance_number') or '', ' '.join(x for x in [a.get('first_name'), a.get('last_name')] if x),
+                    r['status'], r['started_at'] or '', r['stopped_at'] or '', o.get('final_status') or '', nxt, match,
+                    nl.get('chosen_id') or (a.get('insurance_number') if r['agent'] == 'aris' else '') or '', max(0, (nl.get('matches_count') or 0) - 1) if nl else 0,
+                    len(o.get('hard_failures') or []), len(zc.get('unnecessary') or []), len(zc.get('copied') or []), len(zc.get('invented') or []),
+                    sum(1 for c in rw.get('changes') or [] if c.get('from') != '(empty)'), (o.get('sla') or {}).get('days_to_sla_breach', ''),
+                    ', '.join(x.get('id', '') for x in ((o.get('policy') or {}).get('amendments') or [])), sum(1 for x in risks if x.get('occurred')), decision])
+    return Response(buf.getvalue(), media_type='text/csv', headers={'Content-Disposition': 'attachment; filename="zero_gap_case_results.csv"'})
