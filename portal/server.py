@@ -21,9 +21,9 @@ def _now() -> str:
     return time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
 
 
-def _all_runs(limit: int):
+def _all_runs(limit: int, agents=('aris', 'zero')):
     out = []
-    for agent in ('aris', 'zero'):
+    for agent in agents:
         try:
             out += N8N.runs(agent, limit)
         except Exception:  # noqa: BLE001
@@ -124,7 +124,7 @@ def api_summary():
 def export_event_log():
     buf = io.StringIO(); w = csv.writer(buf)
     w.writerow(['Case_ID', 'Agent', 'Insured_Person_ID', 'Applicant', 'Activity', 'Start_Timestamp', 'End_Timestamp', 'Duration_ms', 'Status'])
-    for r, steps in reversed(_all_runs(100)):
+    for r, steps in reversed(_all_runs(100, ('aris',))):   # the agent with ARIS context only
         a = (_outputs(steps).get('Build Case File') or [{}])[0].get('applicant') or {}
         who = ' '.join(x for x in [a.get('first_name'), a.get('last_name')] if x)
         for s in steps:
@@ -132,7 +132,7 @@ def export_event_log():
             t1 = t0 + dt.timedelta(milliseconds=s['duration_ms'] or 0)
             w.writerow([f"{r['agent'].upper()}-{r['id']}", LABEL[r['agent']], a.get('insurance_number') or '', who, s['node'],
                         t0.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3], t1.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3], s['duration_ms'], 'error' if s.get('error') else 'ok'])
-    return Response(buf.getvalue(), media_type='text/csv', headers={'Content-Disposition': 'attachment; filename="zero_gap_event_log.csv"'})
+    return Response(buf.getvalue(), media_type='text/csv', headers={'Content-Disposition': 'attachment; filename="zero_gap_event_log_aris.csv"'})
 
 
 @app.get('/api/export/cases.csv')
