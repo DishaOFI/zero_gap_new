@@ -4,11 +4,18 @@ import datetime as dt, json, threading, time
 
 import httpx
 
+# The only nodes whose output the portal and the exports read (first item only); the rest keep just name and timing.
+KEEP_OUTPUT = {'Build Case File', 'Completeness Rules Engine', 'Zero-Context Agent', 'Compliance Controls (ARIS)',
+               'Prepare Letter & Review Email', 'Guardrails: Validate AI Draft', 'Create Letter PDF', 'Prepare Dispatch',
+               'APPROVED: Release for Dispatch', 'REJECTED: Manual Handling'}
+MAX_KEPT = 300   # trimmed executions kept in memory
+
 
 class N8nBackend:
     def __init__(self, settings):
         self.s = settings   # missing settings are reported on the page instead of stopping the app
-        self._cache: dict[str, tuple[float, int, list]] = {}   # agent -> (fetched_at, limit, executions)
+        self._cache: dict[str, tuple[float, int, list]] = {}   # agent -> (fetched_at, limit, runs)
+        self._kept: dict[str, tuple[str, tuple]] = {}          # execution id -> (status, trimmed run); data only changes while running
         self._lock = threading.Lock()                          # one n8n request at a time, however many browsers poll
         self.ttl = 10                                          # seconds an answer from n8n is reused
         self.workflows = {'aris': settings.n8n_workflow_aris, 'zero': settings.n8n_workflow_zero}
@@ -25,7 +32,7 @@ class N8nBackend:
             raise RuntimeError(f'n8n API {r.status_code}: {r.text[:200]}')
         return r.json()
 
-    def executions(self, agent: str, limit: int = 20) -> list[dict]:
+    def runs(self, agent: str, limit: int = 20) -> list[tuple[dict, list[dict]]]:
         with self._lock:
             hit = self._cache.get(agent)
             if hit and time.time() - hit[0] < self.ttl and hit[1] >= limit:
@@ -34,20 +41,35 @@ class N8nBackend:
             self._cache[agent] = (time.time(), limit, out)
             return out
 
-    def _fetch(self, agent: str, limit: int) -> list[dict]:
+    def _fetch(self, agent: str, limit: int) -> list[tuple[dict, list[dict]]]:
+        """List without data, then download each execution's data once (one at a time) and keep only what the portal reads.
+        A full execution can be tens of MB (e.g. a whole event log in one node), too much for a 512 MB instance."""
         wf = self.workflows.get(agent)
         if not wf:
             raise RuntimeError(f'N8N_WORKFLOW_{agent.upper()} is not set in .env')
-        out, cursor = [], None
-        while len(out) < limit:
-            params = {'workflowId': wf, 'includeData': 'true', 'limit': min(100, limit - len(out))}
+        listed, cursor = [], None
+        while len(listed) < limit:
+            params = {'workflowId': wf, 'limit': min(100, limit - len(listed))}
             if cursor:
                 params['cursor'] = cursor
             j = self._get('/executions', params)
-            out += j.get('data') or []
+            listed += j.get('data') or []
             cursor = j.get('nextCursor')
             if not cursor:
                 break
+        out = []
+        for e in listed:
+            eid, status = str(e.get('id')), e.get('status') or ('success' if e.get('finished') else 'running')
+            hit = self._kept.get(eid)
+            if not hit or hit[0] != status or status in ('running', 'new'):
+                full = self._get(f'/executions/{eid}', {'includeData': 'true'})
+                hit = (status, self.to_run_and_steps(agent, full))
+                del full
+            self._kept.pop(eid, None)
+            self._kept[eid] = hit   # most recently used last
+            out.append(hit[1])
+        while len(self._kept) > MAX_KEPT:
+            self._kept.pop(next(iter(self._kept)))
         return out
 
     @staticmethod
@@ -66,7 +88,7 @@ class N8nBackend:
                 main = (r.get('data') or {}).get('main') or []
                 branch = next((b for b in main if isinstance(b, list) and b), [])
                 steps.append({'node': node, 'started_ms': r.get('startTime') or 0, 'duration_ms': r.get('executionTime') or 0,
-                              'output': [it.get('json') or {} for it in branch] or None,
+                              'output': [branch[0].get('json') or {}] if branch and node in KEEP_OUTPUT else None,
                               'error': (r.get('error') or {}).get('message') if r.get('error') else None})
         steps.sort(key=lambda s: s['started_ms'])
         err = (res.get('error') or {}).get('message') if res.get('error') else None
@@ -74,9 +96,6 @@ class N8nBackend:
                'started_at': e.get('startedAt'), 'stopped_at': e.get('stoppedAt'), 'error': err,
                'applicant_name': None, 'insurance_number': None, 'application_id': None, 'decision': None, 'channel': None}
         return run, steps
-
-    def runs(self, agent: str, limit: int = 20) -> list[tuple[dict, list[dict]]]:
-        return [self.to_run_and_steps(agent, e) for e in self.executions(agent, limit)]
 
     def resume(self, exec_id: str, decision: str, channel: str | None) -> None:
         """Same as clicking the button in the review e-mail: calls the Wait node's resume URL."""
