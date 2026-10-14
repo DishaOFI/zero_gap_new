@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 from .n8n import N8nBackend
 from .settings import settings
-from .view import portal_view
+from .view import decision_of, portal_view
 
 HERE = Path(__file__).parent
 N8N = N8nBackend(settings)
@@ -151,7 +151,7 @@ def export_cases():
         rw = zc.get('record_write') or {}
         nxt = {'escalation': 'Escalation to Case Manager', 'letter': 'Missing-information letter', 'none': 'Ready for assessment'}.get(o.get('route'), '')
         match = '' if not o else 'Correct person' if r['agent'] == 'aris' else 'No match' if not nl.get('chosen_id') else 'Wrong person' if nl.get('id_differs') else 'Correct person'
-        decision = 'approved' if 'APPROVED: Release for Dispatch' in outs else 'rejected' if 'REJECTED: Manual Handling' in outs else ''
+        decision = decision_of((outs.get('Wait for Caseworker Decision') or [None])[0], outs) or ''
         w.writerow([f"{r['agent'].upper()}-{r['id']}", LABEL[r['agent']], a.get('insurance_number') or '', ' '.join(x for x in [a.get('first_name'), a.get('last_name')] if x),
                     r['status'], r['started_at'] or '', r['stopped_at'] or '', o.get('final_status') or '', nxt, match,
                     nl.get('chosen_id') or (a.get('insurance_number') if r['agent'] == 'aris' else '') or '', max(0, (nl.get('matches_count') or 0) - 1) if nl else 0,

@@ -7,14 +7,14 @@ import httpx
 # The only nodes whose output the portal and the exports read (first item only); the rest keep just name and timing.
 KEEP_OUTPUT = {'Build Case File', 'Completeness Rules Engine', 'Zero-Context Agent', 'Compliance Controls (ARIS)',
                'Prepare Letter & Review Email', 'Guardrails: Validate AI Draft', 'Create Letter PDF', 'Prepare Dispatch',
-               'APPROVED: Release for Dispatch', 'REJECTED: Manual Handling'}
+               'Wait for Caseworker Decision', 'APPROVED: Release for Dispatch', 'REJECTED: Manual Handling'}
 MAX_KEPT = 300   # trimmed executions kept in memory
 
 
 class N8nBackend:
     def __init__(self, settings):
         self.s = settings   # missing settings are reported on the page instead of stopping the app
-        self._cache: dict[str, tuple[float, int, list]] = {}   # agent -> (fetched_at, limit, runs)
+        self._cache: dict[str, tuple[float, int, list, list]] = {}   # agent -> (fetched_at, limit, latest runs, older waiting runs)
         self._kept: dict[str, tuple[str, tuple]] = {}          # execution id -> (status, trimmed run); data only changes while running
         self._lock = threading.Lock()                          # one n8n request at a time, however many browsers poll
         self.ttl = 10                                          # seconds an answer from n8n is reused
@@ -35,42 +35,48 @@ class N8nBackend:
     def runs(self, agent: str, limit: int = 20) -> list[tuple[dict, list[dict]]]:
         with self._lock:
             hit = self._cache.get(agent)
-            if hit and time.time() - hit[0] < self.ttl and hit[1] >= limit:
-                return hit[2][:limit]
-            out = self._fetch(agent, limit)
-            self._cache[agent] = (time.time(), limit, out)
-            return out
+            if not (hit and time.time() - hit[0] < self.ttl and hit[1] >= limit):
+                hit = (time.time(), limit, *self._fetch(agent, limit))
+                self._cache[agent] = hit
+            latest = hit[2][:limit]
+            ids = {r['id'] for r, _ in latest}
+            return latest + [x for x in hit[3] if x[0]['id'] not in ids]   # waiting runs are always shown, however old
 
-    def _fetch(self, agent: str, limit: int) -> list[tuple[dict, list[dict]]]:
-        """List without data, then download each execution's data once (one at a time) and keep only what the portal reads.
+    def _fetch(self, agent: str, limit: int) -> tuple[list, list]:
+        """The latest executions plus every execution still waiting for the caseworker.
+        Listed without data, then each one's data is downloaded once (one at a time) and only what the portal reads is kept.
         A full execution can be tens of MB (e.g. a whole event log in one node), too much for a 512 MB instance."""
         wf = self.workflows.get(agent)
         if not wf:
             raise RuntimeError(f'N8N_WORKFLOW_{agent.upper()} is not set in .env')
+        latest = self._list({'workflowId': wf}, limit)
+        ids = {str(e.get('id')) for e in latest}
+        waiting = [e for e in self._list({'workflowId': wf, 'status': 'waiting'}, 100) if str(e.get('id')) not in ids]
+        out = [self._trimmed(agent, e) for e in latest], [self._trimmed(agent, e) for e in waiting]
+        while len(self._kept) > MAX_KEPT:
+            self._kept.pop(next(iter(self._kept)))
+        return out
+
+    def _list(self, params: dict, limit: int) -> list[dict]:
         listed, cursor = [], None
         while len(listed) < limit:
-            params = {'workflowId': wf, 'limit': min(100, limit - len(listed))}
-            if cursor:
-                params['cursor'] = cursor
-            j = self._get('/executions', params)
+            j = self._get('/executions', {**params, 'limit': min(100, limit - len(listed)), **({'cursor': cursor} if cursor else {})})
             listed += j.get('data') or []
             cursor = j.get('nextCursor')
             if not cursor:
                 break
-        out = []
-        for e in listed:
-            eid, status = str(e.get('id')), e.get('status') or ('success' if e.get('finished') else 'running')
-            hit = self._kept.get(eid)
-            if not hit or hit[0] != status or status in ('running', 'new'):
-                full = self._get(f'/executions/{eid}', {'includeData': 'true'})
-                hit = (status, self.to_run_and_steps(agent, full))
-                del full
-            self._kept.pop(eid, None)
-            self._kept[eid] = hit   # most recently used last
-            out.append(hit[1])
-        while len(self._kept) > MAX_KEPT:
-            self._kept.pop(next(iter(self._kept)))
-        return out
+        return listed
+
+    def _trimmed(self, agent: str, e: dict) -> tuple[dict, list[dict]]:
+        eid, status = str(e.get('id')), e.get('status') or ('success' if e.get('finished') else 'running')
+        hit = self._kept.get(eid)
+        if not hit or hit[0] != status or status in ('running', 'new'):
+            full = self._get(f'/executions/{eid}', {'includeData': 'true'})
+            hit = (status, self.to_run_and_steps(agent, full))
+            del full
+        self._kept.pop(eid, None)
+        self._kept[eid] = hit   # most recently used last
+        return hit[1]
 
     @staticmethod
     def to_run_and_steps(agent: str, e: dict) -> tuple[dict, list[dict]]:

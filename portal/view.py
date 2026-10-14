@@ -33,6 +33,18 @@ TL = [('received', 'Application received (Antrag)'), ('md_order', 'Assessment or
       ('decision', 'Care-level decision (Bescheid)'), ('objection', 'Objection (Widerspruch)')]
 
 
+def decision_of(wait: dict | None, ran) -> str | None:
+    """What the caseworker clicked: the decision in the resume link that woke the Wait node.
+    The APPROVED / REJECTED nodes are only the fallback – a mis-wired IF node can run both."""
+    w = wait or {}
+    d = str((w.get('query') or {}).get('decision') or (w.get('body') or {}).get('decision') or '').lower()
+    if d.startswith('approv'):
+        return 'approved'
+    if d.startswith('reject'):
+        return 'rejected'
+    return 'approved' if DECISION[0] in ran else 'rejected' if DECISION[1] in ran else None
+
+
 def _contact(r: dict, d: dict) -> dict:
     """Where the letter can go: the e-mail address and the postal address found in the case (for the Approve buttons)."""
     f = r.get('form') or {}
@@ -88,7 +100,6 @@ def _case(run: dict, steps: list[dict]) -> dict:
     drafts = (dn or {}).get('drafts') or {}
     a = (r or {}).get('applicant') or (cf or {}).get('applicant') or {}
     tl = (r or {}).get('timeline') or (cf or {}).get('timeline') or {}
-    decision_node = next((n for n in DECISION if ran(n)), None)
     review = None
     if r and r.get('final_status'):
         s = r.get('sla') or {}
@@ -127,7 +138,7 @@ def _case(run: dict, steps: list[dict]) -> dict:
         'insurance_number': (r or {}).get('insurance_number') or a.get('insurance_number') or run.get('insurance_number'),
         'case_ref': (r or {}).get('application_id') or (cf or {}).get('case_ref'),
         'steps': step_list, 'review': review, 'can_decide_here': status == 'waiting', 'awaiting_email_confirmation': False,
-        'decision': ('approved' if 'APPROVED' in decision_node else 'rejected') if decision_node else None,
+        'decision': decision_of(out('Wait for Caseworker Decision'), rd),
         'error': run.get('error'),
     }
 
