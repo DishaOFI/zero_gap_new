@@ -1,6 +1,6 @@
 """Reads the executions of the two agent flows through the n8n API and resumes waiting executions (Approve / Reject)."""
 from __future__ import annotations
-import datetime as dt, json
+import datetime as dt, json, threading, time
 
 import httpx
 
@@ -8,6 +8,9 @@ import httpx
 class N8nBackend:
     def __init__(self, settings):
         self.s = settings   # missing settings are reported on the page instead of stopping the app
+        self._cache: dict[str, tuple[float, int, list]] = {}   # agent -> (fetched_at, limit, executions)
+        self._lock = threading.Lock()                          # one n8n request at a time, however many browsers poll
+        self.ttl = 10                                          # seconds an answer from n8n is reused
         self.workflows = {'aris': settings.n8n_workflow_aris, 'zero': settings.n8n_workflow_zero}
 
     def _check(self) -> None:
@@ -23,6 +26,15 @@ class N8nBackend:
         return r.json()
 
     def executions(self, agent: str, limit: int = 20) -> list[dict]:
+        with self._lock:
+            hit = self._cache.get(agent)
+            if hit and time.time() - hit[0] < self.ttl and hit[1] >= limit:
+                return hit[2][:limit]
+            out = self._fetch(agent, limit)
+            self._cache[agent] = (time.time(), limit, out)
+            return out
+
+    def _fetch(self, agent: str, limit: int) -> list[dict]:
         wf = self.workflows.get(agent)
         if not wf:
             raise RuntimeError(f'N8N_WORKFLOW_{agent.upper()} is not set in .env')
@@ -69,6 +81,7 @@ class N8nBackend:
     def resume(self, exec_id: str, decision: str, channel: str | None) -> None:
         """Same as clicking the button in the review e-mail: calls the Wait node's resume URL."""
         self._check()
+        self._cache.clear()   # show the decision on the next refresh
         params = {'decision': decision, **({'channel': channel} if channel else {})}
         r = httpx.get(f'{self.s.n8n_url}/webhook-waiting/{exec_id}', params=params, timeout=60)
         if r.status_code >= 400:

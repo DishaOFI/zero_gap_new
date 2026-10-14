@@ -217,7 +217,7 @@
     catch (e) { toast('Upload failed: ' + e.message); }
     ev.target.value = '';
   });
-  load(); setInterval(load, 5000);
+  (async function loop() { try { await load(); } catch (e) {} setTimeout(loop, 10000); })();   // next refresh only after the last one finished
 })();
 </script>
 </body>

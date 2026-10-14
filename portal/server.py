@@ -1,10 +1,10 @@
 """Caseworker portal: home page, one portal per agent, Approve / Reject, printable letter, CSV exports.
 All data comes from the n8n API – nothing is stored here."""
 from __future__ import annotations
-import base64, csv, datetime as dt, html, io, secrets, time, traceback
+import csv, datetime as dt, html, io, time, traceback
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 from .n8n import N8nBackend
@@ -15,21 +15,6 @@ HERE = Path(__file__).parent
 N8N = N8nBackend(settings)
 LABEL = {'aris': 'Agent with ARIS context', 'zero': 'Agent with zero context'}
 app = FastAPI(title='Zero Gap Agent – Portal')
-
-
-@app.middleware('http')
-async def basic_auth(request: Request, call_next):
-    """Browser login when PORTAL_USER and PORTAL_PASSWORD are set (the health check stays open)."""
-    if settings.portal_user and settings.portal_password and request.url.path != '/api/config':
-        try:
-            scheme, _, cred = request.headers.get('authorization', '').partition(' ')
-            user, _, pw = base64.b64decode(cred).decode().partition(':')
-        except Exception:  # noqa: BLE001
-            scheme, user, pw = '', '', ''
-        if not (scheme.lower() == 'basic' and secrets.compare_digest(user, settings.portal_user)
-                and secrets.compare_digest(pw, settings.portal_password)):
-            return Response('Login required', status_code=401, headers={'WWW-Authenticate': 'Basic realm="Zero Gap Portal"'})
-    return await call_next(request)
 
 
 def _now() -> str:
@@ -139,7 +124,7 @@ def api_summary():
 def export_event_log():
     buf = io.StringIO(); w = csv.writer(buf)
     w.writerow(['Case_ID', 'Agent', 'Insured_Person_ID', 'Applicant', 'Activity', 'Start_Timestamp', 'End_Timestamp', 'Duration_ms', 'Status'])
-    for r, steps in reversed(_all_runs(250)):
+    for r, steps in reversed(_all_runs(100)):
         a = (_outputs(steps).get('Build Case File') or [{}])[0].get('applicant') or {}
         who = ' '.join(x for x in [a.get('first_name'), a.get('last_name')] if x)
         for s in steps:
@@ -157,7 +142,7 @@ def export_cases():
                 'Person_Match_Result', 'Matched_Insured_Person_ID', 'Namesakes_Found', 'Items_Requested_Count', 'Unnecessary_Items_Requested',
                 'Values_Copied_From_Other_Person', 'Values_Invented', 'Record_Fields_Overwritten', 'Days_Left_Shown', 'Policy_Amendments_Applied',
                 'Risks_Occurred', 'Caseworker_Decision'])
-    for r, steps in reversed(_all_runs(250)):
+    for r, steps in reversed(_all_runs(100)):
         outs = _outputs(steps)
         o = (outs.get('Zero-Context Agent' if r['agent'] == 'zero' else 'Compliance Controls (ARIS)') or [{}])[0]
         a = o.get('applicant') or {}
