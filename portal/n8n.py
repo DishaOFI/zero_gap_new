@@ -7,12 +7,15 @@ import httpx
 
 class N8nBackend:
     def __init__(self, settings):
-        self.s = settings
-        if not (settings.n8n_url and settings.n8n_api_key):
-            raise RuntimeError('BACKEND=n8n needs N8N_URL and N8N_API_KEY in .env')
+        self.s = settings   # missing settings are reported on the page instead of stopping the app
         self.workflows = {'aris': settings.n8n_workflow_aris, 'zero': settings.n8n_workflow_zero}
 
+    def _check(self) -> None:
+        if not (self.s.n8n_url and self.s.n8n_api_key):
+            raise RuntimeError('N8N_URL and N8N_API_KEY are not set (.env locally, or Environment on Render)')
+
     def _get(self, path: str, params: dict) -> dict:
+        self._check()
         r = httpx.get(f'{self.s.n8n_url}/api/v1{path}', params=params, timeout=60,
                       headers={'X-N8N-API-KEY': self.s.n8n_api_key, 'accept': 'application/json'})
         if r.status_code >= 400:
@@ -65,6 +68,7 @@ class N8nBackend:
 
     def resume(self, exec_id: str, decision: str, channel: str | None) -> None:
         """Same as clicking the button in the review e-mail: calls the Wait node's resume URL."""
+        self._check()
         params = {'decision': decision, **({'channel': channel} if channel else {})}
         r = httpx.get(f'{self.s.n8n_url}/webhook-waiting/{exec_id}', params=params, timeout=60)
         if r.status_code >= 400:
