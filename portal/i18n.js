@@ -144,7 +144,10 @@
     'r.suggestionTag':    ['Suggestion', 'Vorschlag'],
     'r.escNote':          ['Escalation note to the Case Manager', 'Eskalationsnotiz an den Fallmanager'],
     'r.draftTo':          ['Draft letter to {n}', 'Entwurf des Schreibens an {n}'],
-    'r.letterAsSent':     ['', 'Das Schreiben wird von n8n erstellt und genau so versendet – deshalb wird es hier nicht übersetzt.'],
+    'r.sentDe':           ['', 'Diese deutsche Fassung wird nach Ihrer Freigabe versendet. Eine englische Referenzfassung sehen Sie unter EN.'],
+    'r.refCopy':          ['English reference copy only – after your approval the German version is sent (switch to DE to read it).', ''],
+    'r.refSuffix':        [' – English reference copy', ''],
+    'r.onlyEn':           ['', 'Vorgang aus der Zeit vor der Umstellung: Das Schreiben liegt nur auf Englisch vor und wird so versendet.'],
     // decision
     'd.recorded':         ['Decision recorded:', 'Entscheidung erfasst:'],
     'd.sentCM':           [' – escalation sent to the Case Manager', ' – Eskalation an den Fallmanager gesendet'],

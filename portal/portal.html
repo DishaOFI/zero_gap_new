@@ -269,18 +269,26 @@
       const ready = r.final_status === 'Ready for Assessment';
       const s = r.sla || {};
       const tiles = reviewTiles(r, ready, s);
-      const details = r.facts ? `<div class="sub">${t('r.details')}</div><table class="kv">${r.facts.map(([k, v]) => `<tr><td>${esc(I18N.field(k))}</td><td>${tx(v)}</td></tr>`).join('')}</table>` : `<table class="kv">
+      // German texts written by the flow (r.de) when DE is selected; runs from before the flows were bilingual fall back to the display translation
+      const DE = I18N.lang === 'de', G = r.de || {};
+      const pick = (de, en) => DE && de ? esc(de) : tx(en);
+      const rows = (de, en) => DE && de ? de.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')
+        : (en || []).map(([k, v]) => `<tr><td>${esc(I18N.field(k))}</td><td>${tx(v)}</td></tr>`).join('');
+      const details = r.facts ? `<div class="sub">${t('r.details')}</div><table class="kv">${rows(G.facts, r.facts)}</table>` : `<table class="kv">
         <tr><td>${t('r.applicant')}</td><td>${c.applicant_name ? tx(c.applicant_name) : '–'}${r.date_of_birth ? ' (' + t('r.born', {d: esc(r.date_of_birth)}) + ')' : ''}</td></tr>
         <tr><td>${t('r.memberCase')}</td><td>${esc(c.insurance_number || '–')} · ${esc(r.case_ref || '–')}</td></tr>
         <tr><td>${t('r.representative')}</td><td>${esc(r.representative || '–')}</td></tr>
-        ${(r.extra_facts || []).map(([k, v]) => `<tr><td>${esc(I18N.field(k))}</td><td>${tx(v)}</td></tr>`).join('')}
-        ${r.route === 'escalation' ? `<tr><td>${t('r.whyEscalate')}</td><td>${(r.route_reasons || []).map(tx).join('; ')}</td></tr>` : ''}
+        ${rows(G.extra_facts, r.extra_facts)}
+        ${r.route === 'escalation' ? `<tr><td>${t('r.whyEscalate')}</td><td>${(DE && (G.route_reasons || []).length ? G.route_reasons.map(esc) : (r.route_reasons || []).map(tx)).join('; ')}</td></tr>` : ''}
       </table>`;
-      const items = (r.blocking.length ? `<div class="sub">${t('r.outstanding')}</div>` + r.blocking.map(x => `<div class="item bad"><b>${t('r.missingTag')}</b>${tx(x)}</div>`).join('') : '')
-                  + (r.checks.length ? `<div class="sub">${t('r.toCheck')}</div>` + r.checks.map(x => `<div class="item warn"><b>${t('r.checkTag')}</b>${tx(x)}</div>`).join('') : '');
-      const sugg = (r.suggestions || []).length ? `<div class="sub">${t('r.suggested')}</div>` + r.suggestions.map(x => `<div class="item info"><b>${t('r.suggestionTag')}</b>${tx(x)}</div>`).join('') : '';
-      const letter = r.letter ? `<div class="sub">${r.route === 'escalation' ? t('r.escNote') : t('r.draftTo', {n: (r.addressee ? tx(r.addressee) : t('t.applicant'))})}</div><div class="letter">${esc(r.letter)}</div>${I18N.lang === 'de' ? `<div class="note" style="margin-top:6px">${t('r.letterAsSent')}</div>` : ''}` : '';
-      const disp = r.dispatch?.text ? `<div class="note" style="margin-top:10px">${tx(r.dispatch.text)}</div>` : '';
+      const items = (r.blocking.length ? `<div class="sub">${t('r.outstanding')}</div>` + r.blocking.map((x, i) => `<div class="item bad"><b>${t('r.missingTag')}</b>${pick((G.blocking || [])[i], x)}</div>`).join('') : '')
+                  + (r.checks.length ? `<div class="sub">${t('r.toCheck')}</div>` + r.checks.map((x, i) => `<div class="item warn"><b>${t('r.checkTag')}</b>${pick((G.checks || [])[i], x)}</div>`).join('') : '');
+      const sugg = (r.suggestions || []).length ? `<div class="sub">${t('r.suggested')}</div>` + r.suggestions.map((x, i) => `<div class="item info"><b>${t('r.suggestionTag')}</b>${pick((G.suggestions || [])[i], x)}</div>`).join('') : '';
+      // the German letter is the one that is sent; the English one is a reference copy
+      const letterNote = G.letter ? (DE ? t('r.sentDe') : t('r.refCopy')) : (DE ? t('r.onlyEn') : '');
+      const letter = r.letter ? `<div class="sub">${r.route === 'escalation' ? t('r.escNote') : t('r.draftTo', {n: (r.addressee ? tx(r.addressee) : t('t.applicant'))})}${G.letter && !DE ? t('r.refSuffix') : ''}</div>
+        <div class="letter">${esc(DE && G.letter ? G.letter : r.letter)}</div>${letterNote ? `<div class="note" style="margin-top:6px">${letterNote}</div>` : ''}` : '';
+      const disp = r.dispatch?.text ? `<div class="note" style="margin-top:10px">${pick(r.dispatch.text_de, r.dispatch.text)}</div>` : '';
 
       let actions = '';
       const o = r.dispatch?.options || {};
@@ -332,7 +340,7 @@
     deciding[c.id] = true; render();
     try {
       if (DEMO) { demoDecide(c.id, act, ch); }
-      else { const r = await fetch('/api/runs/' + encodeURIComponent(c.id) + '/decision?decision=' + act + (ch ? '&channel=' + ch : ''), { method: 'POST' }); if (!r.ok) throw new Error((await r.json()).detail || r.statusText); }
+      else { const r = await fetch('/api/runs/' + encodeURIComponent(c.id) + '/decision?decision=' + act + (ch ? '&channel=' + ch : '') + '&lang=de', { method: 'POST' }); if (!r.ok) throw new Error((await r.json()).detail || r.statusText); }
       toast(act !== 'approve' ? t('d.toastRejected') : ch === 'print' ? t('d.toastPrint') : ch === 'case_manager' ? t('d.toastCM') : t('d.toastMail'));
     } catch (e) { toast(t('d.failed', {e: e.message})); }
     setTimeout(() => { delete deciding[c.id]; poll(); }, 1200);

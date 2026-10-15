@@ -80,12 +80,13 @@ def api_portal(agent: str):
 
 
 @app.post('/api/runs/{run_id}/decision')
-def api_decide(run_id: str, decision: str, channel: str | None = None):
+def api_decide(run_id: str, decision: str, channel: str | None = None, lang: str = 'de'):
+    lang = 'en' if lang == 'en' else 'de'   # the German letter is sent; English is a reference copy
     try:
-        N8N.resume(run_id, 'approve' if decision == 'approve' else 'reject', channel)
+        N8N.resume(run_id, 'approve' if decision == 'approve' else 'reject', channel, lang)
     except RuntimeError as e:
         raise HTTPException(409, str(e))
-    return {'decision': decision, 'channel': channel}
+    return {'decision': decision, 'channel': channel, 'lang': lang}
 
 
 @app.get('/api/summary')

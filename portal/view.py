@@ -71,7 +71,7 @@ def _case(run: dict, steps: list[dict]) -> dict:
     check = ['Completeness Rules Engine', 'Zero-Context Agent'] if zero else ['Completeness Rules Engine', 'Compliance Controls (ARIS)']
     draft = ['Write Case Record (CRM)', 'AI: Draft Letter', 'Prepare Letter & Review Email', 'Create Letter PDF'] if zero else DRAFT
     stages = [
-        ('received', 'Trigger received', 'New application received – starting the case review.', ['Gmail Trigger', 'Extract Application PDF'], ['Gmail Trigger']),
+        ('received', 'Trigger received', 'New application received – starting the case review.', ['Gmail Trigger', 'Gmail Trigger1', 'Extract Application PDF'], ['Gmail Trigger', 'Gmail Trigger1', 'Extract Application PDF']),
         ('docs', 'Reading documents', 'Loading the case documents.', DOCS_DRIVE if zero else DOCS_ARIS, ['Read Case Document Text']),
         ('sops', 'Reading SOPs', 'Loading the SOPs and policies.', SOP_DRIVE if zero else SOP_ARIS, ['Read SOP Text']),
         ('casefile', 'Building the case file', 'Reading applicant, representative and dates from the documents.', ['Build Case File'], ['Build Case File']),
@@ -129,6 +129,16 @@ def _case(run: dict, steps: list[dict]) -> dict:
             'dispatch': (pd or {}).get('dispatch') or r.get('dispatch'),
             'extra_facts': r.get('extra_facts') or [],
             'facts': (dn or {}).get('review_facts'),
+            # German versions written by the flows (missing in runs from before they became bilingual)
+            'de': {
+                'letter': drafts.get('escalation_summary_de') if r.get('route') == 'escalation' else drafts.get('outreach_letter_de'),
+                'facts': (dn or {}).get('review_facts_de'),
+                'extra_facts': r.get('extra_facts_de'),
+                'blocking': [f.get('message_de') for f in r.get('hard_failures') or []],
+                'checks': [f.get('message_de') for f in r.get('soft_warnings') or []],
+                'suggestions': [] if zero else [x.get('text_de') for x in r.get('suggestions') or []],
+                'route_reasons': r.get('route_reasons_de') or [],
+            },
             'contact': _contact(r, (pd or {}).get('dispatch') or r.get('dispatch') or {}),
             'letter_file': next(iter((out('Create Letter PDF') or {}).get('_files') or []), None),
         }

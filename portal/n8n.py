@@ -150,12 +150,12 @@ class N8nBackend:
                'applicant_name': None, 'insurance_number': None, 'application_id': None, 'decision': None, 'channel': None}
         return run, steps
 
-    def resume(self, exec_id: str, decision: str, channel: str | None) -> None:
+    def resume(self, exec_id: str, decision: str, channel: str | None, lang: str | None = None) -> None:
         """Same as clicking the button in the review e-mail: calls the Wait node's resume URL."""
         self._check()
         self._cache.clear()   # show the decision on the next refresh
         self._hidden = (0, {})
-        params = {'decision': decision, **({'channel': channel} if channel else {})}
+        params = {'decision': decision, **({'channel': channel} if channel else {}), **({'lang': lang} if lang else {})}   # lang: letter language Prepare Dispatch sends
         r = httpx.get(f'{self.s.n8n_url}/webhook-waiting/{exec_id}', params=params, timeout=60)
         if r.status_code >= 400:
             raise RuntimeError(f'n8n did not accept the decision ({r.status_code}). Use the buttons in the review e-mail instead.')
