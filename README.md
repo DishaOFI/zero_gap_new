@@ -27,3 +27,7 @@ If Approve / Reject in the portal shows an error, approve from the review e-mail
 4. Open `https://<service>.onrender.com`.
 
 Free instances sleep after 15 min without traffic; the first request afterwards takes ~1 min.
+
+## Language
+The portal is in German by default; the **DE | EN** switch in the header changes it (remembered per browser, or use `?lang=en` / `?lang=de` in a link).
+Texts live in `portal/i18n.js`. The CSV exports are always German (`portal/de.py`); letters and findings come from the n8n flows in their own language.

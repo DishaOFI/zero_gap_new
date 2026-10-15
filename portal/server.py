@@ -7,13 +7,13 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 
+from . import de
 from .n8n import N8nBackend
 from .settings import settings
 from .view import decision_of, portal_view
 
 HERE = Path(__file__).parent
 N8N = N8nBackend(settings)
-LABEL = {'aris': 'Agent with ARIS context', 'zero': 'Agent with zero context'}
 app = FastAPI(title='Zero Gap Agent – Portal')
 
 
@@ -39,6 +39,11 @@ def _outputs(steps):
 @app.get('/', response_class=HTMLResponse)
 def home():
     return HTMLResponse((HERE / 'home.html').read_text(encoding='utf-8'))
+
+
+@app.get('/i18n.js')
+def i18n_js():
+    return Response((HERE / 'i18n.js').read_text(encoding='utf-8'), media_type='application/javascript', headers={'Cache-Control': 'no-cache'})
 
 
 @app.get('/portal/{agent}', response_class=HTMLResponse)
@@ -123,25 +128,25 @@ def api_summary():
 @app.get('/api/export/event-log.csv')
 def export_event_log():
     buf = io.StringIO(); w = csv.writer(buf)
-    w.writerow(['Case_ID', 'Agent', 'Insured_Person_ID', 'Applicant', 'Activity', 'Start_Timestamp', 'End_Timestamp', 'Duration_ms', 'Status'])
+    w.writerow(['Fall_ID', 'Agent', 'Versicherten_ID', 'Antragsteller', 'Aktivitaet', 'Startzeitpunkt', 'Endzeitpunkt', 'Dauer_ms', 'Status'])
     for r, steps in reversed(_all_runs(100, ('aris',))):   # the agent with ARIS context only
         a = (_outputs(steps).get('Build Case File') or [{}])[0].get('applicant') or {}
         who = ' '.join(x for x in [a.get('first_name'), a.get('last_name')] if x)
         for s in steps:
             t0 = dt.datetime.fromtimestamp((s['started_ms'] or 0) / 1000, dt.timezone.utc)
             t1 = t0 + dt.timedelta(milliseconds=s['duration_ms'] or 0)
-            w.writerow([f"{r['agent'].upper()}-{r['id']}", LABEL[r['agent']], a.get('insurance_number') or '', who, s['node'],
-                        t0.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3], t1.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3], s['duration_ms'], 'error' if s.get('error') else 'ok'])
-    return Response(buf.getvalue(), media_type='text/csv', headers={'Content-Disposition': 'attachment; filename="zero_gap_event_log_aris.csv"'})
+            w.writerow([f"{r['agent'].upper()}-{r['id']}", de.AGENT[r['agent']], a.get('insurance_number') or '', who, de.NODE.get(s['node'], s['node']),
+                        t0.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3], t1.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3], s['duration_ms'], 'Fehler' if s.get('error') else 'ok'])
+    return Response(buf.getvalue(), media_type='text/csv', headers={'Content-Disposition': 'attachment; filename="zero_gap_ereignisprotokoll_aris.csv"'})
 
 
 @app.get('/api/export/cases.csv')
 def export_cases():
     buf = io.StringIO(); w = csv.writer(buf)
-    w.writerow(['Agent_Run_ID', 'Agent', 'Insured_Person_ID', 'Applicant', 'Status', 'Started', 'Finished', 'Final_Status', 'Agent_Next_Step',
-                'Person_Match_Result', 'Matched_Insured_Person_ID', 'Namesakes_Found', 'Items_Requested_Count', 'Unnecessary_Items_Requested',
-                'Values_Copied_From_Other_Person', 'Values_Invented', 'Record_Fields_Overwritten', 'Days_Left_Shown', 'Policy_Amendments_Applied',
-                'Risks_Occurred', 'Caseworker_Decision'])
+    w.writerow(['Agentenlauf_ID', 'Agent', 'Versicherten_ID', 'Antragsteller', 'Status', 'Gestartet', 'Beendet', 'Endstatus', 'Naechster_Schritt',
+                'Ergebnis_Personenabgleich', 'Zugeordnete_Versicherten_ID', 'Gefundene_Namensvettern', 'Anzahl_angeforderte_Punkte', 'Unnoetig_angeforderte_Punkte',
+                'Von_anderer_Person_kopierte_Werte', 'Erfundene_Werte', 'Ueberschriebene_Felder', 'Angezeigte_Resttage', 'Angewandte_Richtlinienaenderungen',
+                'Eingetretene_Risiken', 'Entscheidung_Sachbearbeitung'])
     for r, steps in reversed(_all_runs(100)):
         outs = _outputs(steps)
         o = (outs.get('Zero-Context Agent' if r['agent'] == 'zero' else 'Compliance Controls (ARIS)') or [{}])[0]
@@ -149,13 +154,14 @@ def export_cases():
         nl, zc = o.get('name_lookup') or {}, o.get('zero_context') or {}
         risks = (o.get('risk_register') or {}).get('risks') or []
         rw = zc.get('record_write') or {}
-        nxt = {'escalation': 'Escalation to Case Manager', 'letter': 'Missing-information letter', 'none': 'Ready for assessment'}.get(o.get('route'), '')
+        nxt = de.NEXT_STEP.get(o.get('route'), '')
         match = '' if not o else 'Correct person' if r['agent'] == 'aris' else 'No match' if not nl.get('chosen_id') else 'Wrong person' if nl.get('id_differs') else 'Correct person'
         decision = decision_of((outs.get('Wait for Caseworker Decision') or [None])[0], outs) or ''
-        w.writerow([f"{r['agent'].upper()}-{r['id']}", LABEL[r['agent']], a.get('insurance_number') or '', ' '.join(x for x in [a.get('first_name'), a.get('last_name')] if x),
-                    r['status'], r['started_at'] or '', r['stopped_at'] or '', o.get('final_status') or '', nxt, match,
+        final = o.get('final_status') or ''
+        w.writerow([f"{r['agent'].upper()}-{r['id']}", de.AGENT[r['agent']], a.get('insurance_number') or '', ' '.join(x for x in [a.get('first_name'), a.get('last_name')] if x),
+                    de.STATUS.get(r['status'], r['status']), r['started_at'] or '', r['stopped_at'] or '', de.FINAL_STATUS.get(final, final), nxt, de.MATCH.get(match, match),
                     nl.get('chosen_id') or (a.get('insurance_number') if r['agent'] == 'aris' else '') or '', max(0, (nl.get('matches_count') or 0) - 1) if nl else 0,
                     len(o.get('hard_failures') or []), len(zc.get('unnecessary') or []), len(zc.get('copied') or []), len(zc.get('invented') or []),
                     sum(1 for c in rw.get('changes') or [] if c.get('from') != '(empty)'), (o.get('sla') or {}).get('days_to_sla_breach', ''),
-                    ', '.join(x.get('id', '') for x in ((o.get('policy') or {}).get('amendments') or [])), sum(1 for x in risks if x.get('occurred')), decision])
-    return Response(buf.getvalue(), media_type='text/csv', headers={'Content-Disposition': 'attachment; filename="zero_gap_case_results.csv"'})
+                    ', '.join(x.get('id', '') for x in ((o.get('policy') or {}).get('amendments') or [])), sum(1 for x in risks if x.get('occurred')), de.DECISION.get(decision, decision)])
+    return Response(buf.getvalue(), media_type='text/csv', headers={'Content-Disposition': 'attachment; filename="zero_gap_fallergebnisse.csv"'})

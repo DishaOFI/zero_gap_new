@@ -56,6 +56,7 @@
   .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 16px;border-radius:10px;font-weight:600;font-size:14px;text-decoration:none;background:var(--acc);color:#fff;border:1px solid var(--acc);transition:filter .15s}
   .btn:hover{filter:brightness(1.08)} .btn.ghost{background:#fff;color:var(--brand);border-color:var(--line)}
   .go small{color:var(--muted);font-size:12.5px}
+  .go .btn{flex:none;white-space:nowrap}
   /* ---------- sections */
   section{margin-top:34px} .sh{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 14px}
   .sh h3{margin:0;font-size:18px;letter-spacing:-.2px} .sh span{color:var(--muted);font-size:13px}
@@ -87,17 +88,18 @@
   @media (max-width:980px){.hero-body{grid-template-columns:1fr 1fr}.agents,.grid2{grid-template-columns:1fr}.agents{margin-top:-60px}.steps{grid-template-columns:1fr 1fr}.s:nth-child(2)::after{display:none}h1{font-size:36px}}
   @media (max-width:560px){.nav b{display:none}.ah .tag{display:none}.stats{grid-template-columns:1fr 1fr}.steps{grid-template-columns:1fr}.s::after{display:none}.wrap{padding:0 16px}td,th{padding:11px 12px}.hide-sm{display:none}}
 </style>
+<script src="/i18n.js"></script>
 </head>
 <body>
 <header class="hero">
   <div class="wrap">
     <div class="nav"><div class="mark">ZG</div><b>Zero Gap Agent</b><span class="sp"></span>
-      <span class="pill"><span class="dot"></span><span id="live">Connecting…</span></span></div>
+      <span class="pill"><span class="dot"></span><span id="live" data-i18n="live.connecting">Connecting…</span></span><span class="lang-sw"></span></div>
     <div class="hero-body">
-      <div class="hk"><div class="n" id="kTotal">–</div><div class="l">Applications checked</div></div>
-      <div class="hk"><div class="n" id="kWait">–</div><div class="l">Waiting for your review</div></div>
-      <div class="hk"><div class="n" id="kEsc">–</div><div class="l">Escalated to Case Manager</div></div>
-      <div class="hk"><div class="n" id="kWrong">–</div><div class="l">Wrong-person matches (no context)</div></div>
+      <div class="hk"><div class="n" id="kTotal">–</div><div class="l" data-i18n="home.kTotal">Applications checked</div></div>
+      <div class="hk"><div class="n" id="kWait">–</div><div class="l" data-i18n="home.kWait">Waiting for your review</div></div>
+      <div class="hk"><div class="n" id="kEsc">–</div><div class="l" data-i18n="home.kEsc">Escalated to Case Manager</div></div>
+      <div class="hk"><div class="n" id="kWrong">–</div><div class="l" data-i18n="home.kWrong">Wrong-person matches (no context)</div></div>
     </div>
   </div>
 </header>
@@ -106,61 +108,61 @@
   <div class="agents">
     <article class="agent aris">
       <div class="ah"><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z"/><path d="M9 12l2 2 4-4"/></svg></div>
-        <div><h2>Agent with ARIS context</h2></div>
-        <span class="tag">Governed</span></div>
+        <div><h2 data-i18n="agent.aris">Agent with ARIS context</h2></div>
+        <span class="tag" data-i18n="home.governed">Governed</span></div>
       <div class="stats">
-        <div class="st"><div class="n" data-a="aris" data-k="total">–</div><div class="l">Checked</div></div>
-        <div class="st hl"><div class="n" data-a="aris" data-k="waiting">–</div><div class="l">In review</div></div>
-        <div class="st"><div class="n" data-a="aris" data-k="escalation">–</div><div class="l">Escalations</div></div>
-        <div class="st"><div class="n" data-a="aris" data-k="risks">–</div><div class="l">Risks hit</div></div>
+        <div class="st"><div class="n" data-a="aris" data-k="total">–</div><div class="l" data-i18n="home.checked">Checked</div></div>
+        <div class="st hl"><div class="n" data-a="aris" data-k="waiting">–</div><div class="l" data-i18n="home.inReview">In review</div></div>
+        <div class="st"><div class="n" data-a="aris" data-k="escalation">–</div><div class="l" data-i18n="home.escalations">Escalations</div></div>
+        <div class="st"><div class="n" data-a="aris" data-k="risks">–</div><div class="l" data-i18n="home.risks">Risks hit</div></div>
       </div>
-      <div class="go"><a class="btn" href="/portal/aris">Open portal <span>→</span></a><small id="arisNote"></small></div>
+      <div class="go"><a class="btn" href="/portal/aris"><b data-i18n="home.open" style="font-weight:inherit">Open portal</b> <span>→</span></a><small id="arisNote"></small></div>
     </article>
     <article class="agent zero">
       <div class="ah"><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg></div>
-        <div><h2>Agent with zero context</h2></div>
-        <span class="tag">Ungoverned</span></div>
+        <div><h2 data-i18n="agent.zero">Agent with zero context</h2></div>
+        <span class="tag" data-i18n="home.ungoverned">Ungoverned</span></div>
       <div class="stats">
-        <div class="st"><div class="n" data-a="zero" data-k="total">–</div><div class="l">Checked</div></div>
-        <div class="st hl"><div class="n" data-a="zero" data-k="waiting">–</div><div class="l">In review</div></div>
-        <div class="st"><div class="n" data-a="zero" data-k="wrong_person">–</div><div class="l">Wrong person</div></div>
-        <div class="st"><div class="n" data-a="zero" data-k="risks">–</div><div class="l">Risks hit</div></div>
+        <div class="st"><div class="n" data-a="zero" data-k="total">–</div><div class="l" data-i18n="home.checked">Checked</div></div>
+        <div class="st hl"><div class="n" data-a="zero" data-k="waiting">–</div><div class="l" data-i18n="home.inReview">In review</div></div>
+        <div class="st"><div class="n" data-a="zero" data-k="wrong_person">–</div><div class="l" data-i18n="home.wrongPerson">Wrong person</div></div>
+        <div class="st"><div class="n" data-a="zero" data-k="risks">–</div><div class="l" data-i18n="home.risks">Risks hit</div></div>
       </div>
-      <div class="go"><a class="btn" href="/portal/zero">Open portal <span>→</span></a><small id="zeroNote"></small></div>
+      <div class="go"><a class="btn" href="/portal/zero"><b data-i18n="home.open" style="font-weight:inherit">Open portal</b> <span>→</span></a><small id="zeroNote"></small></div>
     </article>
   </div>
 
   <section>
-    <div class="sh"><h3>How it works</h3><span>Nothing reaches the applicant without a caseworker</span></div>
+    <div class="sh"><h3 data-i18n="home.how">How it works</h3><span data-i18n="home.howSub">Nothing reaches the applicant without a caseworker</span></div>
     <div class="card steps">
-      <div class="s"><div class="k">1</div><h4>Application arrives</h4><p>The form comes in by e-mail and both agents start at once.</p></div>
-      <div class="s"><div class="k">2</div><h4>Documents &amp; rules</h4><p>Case documents, SOPs and policies are read – from ARIS, or from a shared drive.</p></div>
-      <div class="s"><div class="k">3</div><h4>Check &amp; decide</h4><p>Missing items, legal deadlines and the next step: letter, escalation or release.</p></div>
-      <div class="s"><div class="k">4</div><h4>You approve</h4><p>Review the draft, then send it by e-mail or print it for the post.</p></div>
+      <div class="s"><div class="k">1</div><h4 data-i18n="home.s1">Application arrives</h4><p data-i18n="home.s1t">The form comes in by e-mail and both agents start at once.</p></div>
+      <div class="s"><div class="k">2</div><h4 data-i18n="home.s2">Documents &amp; rules</h4><p data-i18n="home.s2t">Case documents, SOPs and policies are read – from ARIS, or from a shared drive.</p></div>
+      <div class="s"><div class="k">3</div><h4 data-i18n="home.s3">Check &amp; decide</h4><p data-i18n="home.s3t">Missing items, legal deadlines and the next step: letter, escalation or release.</p></div>
+      <div class="s"><div class="k">4</div><h4 data-i18n="home.s4">You approve</h4><p data-i18n="home.s4t">Review the draft, then send it by e-mail or print it for the post.</p></div>
     </div>
   </section>
 
   <section class="grid2">
     <div>
-      <div class="sh"><h3>Latest applications</h3><span id="upd"></span></div>
+      <div class="sh"><h3 data-i18n="home.latest">Latest applications</h3><span id="upd"></span></div>
       <div class="card" style="overflow:hidden">
-        <table><thead><tr><th>Applicant</th><th>Agent</th><th class="hide-sm">Next step</th><th>Status</th></tr></thead>
-          <tbody id="recent"><tr><td colspan="4" class="empty">Loading…</td></tr></tbody></table>
+        <table><thead><tr><th data-i18n="home.colApplicant">Applicant</th><th data-i18n="home.colAgent">Agent</th><th class="hide-sm" data-i18n="home.colNext">Next step</th><th data-i18n="home.colStatus">Status</th></tr></thead>
+          <tbody id="recent"><tr><td colspan="4" class="empty" data-i18n="home.loading">Loading…</td></tr></tbody></table>
       </div>
     </div>
     <div>
-      <div class="sh"><h3>Tools</h3><span></span></div>
+      <div class="sh"><h3 data-i18n="home.tools">Tools</h3><span></span></div>
       <div class="card side">
-        <label class="dl upl" id="upl" style="cursor:pointer"><div class="di">⬆</div><div><b>New application</b><small>Upload a form PDF – both agents start</small></div>
+        <label class="dl upl" id="upl" style="cursor:pointer"><div class="di">⬆</div><div><b data-i18n="home.newApp">New application</b><small data-i18n="home.uplSub">Upload a form PDF – both agents start</small></div>
           <input type="file" id="file" accept="application/pdf" hidden></label>
-        <a class="dl" href="/api/export/event-log.csv"><div class="di">⇣</div><div><b>Event log (CSV)</b><small>Every step of every run of the agent with ARIS context – for ARIS Process Mining</small></div></a>
-        <a class="dl" href="/api/export/cases.csv"><div class="di">⇣</div><div><b>Case results (CSV)</b><small>One row per run with the KPI fields</small></div></a>
+        <a class="dl" href="/api/export/event-log.csv"><div class="di">⇣</div><div><b data-i18n="home.evlog">Event log (CSV)</b><small data-i18n="home.evlogSub">Every step of every run of the agent with ARIS context – for ARIS Process Mining</small></div></a>
+        <a class="dl" href="/api/export/cases.csv"><div class="di">⇣</div><div><b data-i18n="home.cases">Case results (CSV)</b><small data-i18n="home.casesSub">One row per run with the KPI fields</small></div></a>
         <p id="backend"></p>
       </div>
     </div>
   </section>
 
-  <footer><span>Zero Gap Agent · care application intake</span><span id="gen"></span></footer>
+  <footer><span data-i18n="home.footer">Zero Gap Agent · care application intake</span><span id="gen"></span></footer>
 </main>
 <div class="toast" id="toast"></div>
 
@@ -168,16 +170,18 @@
 (() => {
   const $ = s => document.querySelector(s);
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const ftime = iso => iso ? new Date(iso).toLocaleString([], {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}) : '';
+  const { t } = I18N;
+  const ftime = iso => iso ? new Date(iso).toLocaleString(I18N.locale, {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}) : '';
+  const clock = () => new Date().toLocaleTimeString(I18N.locale, {hour:'2-digit', minute:'2-digit', second:'2-digit'});
   const toast = t => { const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 3500); };
-  const STEP = { escalation: 'Escalation', letter: 'Letter', none: 'Release for assessment' };
+  const STEP = { escalation: t('route.escalation'), letter: t('route.letter'), none: t('route.none') };
   function chip(c) {
-    if (c.decision === 'approved') return '<span class="chip c-ok">Approved</span>';
-    if (c.decision === 'rejected') return '<span class="chip c-bad">Rejected</span>';
-    if (c.status === 'waiting') return '<span class="chip c-wait">Awaiting review</span>';
-    if (c.status === 'error' || c.status === 'crashed') return '<span class="chip c-bad">Error</span>';
-    if (c.status === 'success') return '<span class="chip c-ok">Done</span>';
-    return '<span class="chip c-run">Processing</span>';
+    if (c.decision === 'approved') return `<span class="chip c-ok">${t('chip.approved')}</span>`;
+    if (c.decision === 'rejected') return `<span class="chip c-bad">${t('chip.rejected')}</span>`;
+    if (c.status === 'waiting') return `<span class="chip c-wait">${t('chip.waiting')}</span>`;
+    if (c.status === 'error' || c.status === 'crashed') return `<span class="chip c-bad">${t('chip.error')}</span>`;
+    if (c.status === 'success') return `<span class="chip c-ok">${t('chip.done')}</span>`;
+    return `<span class="chip c-run">${t('chip.processing')}</span>`;
   }
   function count(el, to) {
     const from = Number(el.dataset.v || 0); el.dataset.v = to;
@@ -193,25 +197,25 @@
       count($('#kTotal'), A.total + Z.total); count($('#kWait'), A.waiting + Z.waiting);
       count($('#kEsc'), A.escalation); count($('#kWrong'), Z.wrong_person);
       document.querySelectorAll('[data-a]').forEach(el => count(el, (d.agents[el.dataset.a] || {})[el.dataset.k] || 0));
-      $('#arisNote').textContent = A.error_text ? '⚠ ' + A.error_text : `${A.approved} approved · ${A.rejected} rejected`;
-      $('#zeroNote').textContent = Z.error_text ? '⚠ ' + Z.error_text : `${Z.approved} approved · ${Z.rejected} rejected`;
+      $('#arisNote').textContent = A.error_text ? '⚠ ' + A.error_text : t('home.note', {a: A.approved, r: A.rejected});
+      $('#zeroNote').textContent = Z.error_text ? '⚠ ' + Z.error_text : t('home.note', {a: Z.approved, r: Z.rejected});
       $('#recent').innerHTML = d.recent.length ? d.recent.map(c => `<tr class="row" data-href="/portal/${c.agent}">
-          <td class="who"><b>${esc(c.name)}</b><small>${esc(c.ref)}${c.ref ? ' · ' : ''}${esc(ftime(c.started_at))}</small></td>
-          <td><span class="ag ${c.agent}">${c.agent === 'aris' ? 'ARIS context' : 'Zero context'}</span></td>
+          <td class="who"><b>${esc(c.name === 'New application' ? t('home.newApp') : c.name)}</b><small>${esc(c.ref)}${c.ref ? ' · ' : ''}${esc(ftime(c.started_at))}</small></td>
+          <td><span class="ag ${c.agent}">${c.agent === 'aris' ? t('home.tagAris') : t('home.tagZero')}</span></td>
           <td class="hide-sm">${esc(STEP[c.route] || '–')}</td><td>${chip(c)}</td></tr>`).join('')
-        : '<tr><td colspan="4" class="empty">No applications yet.</td></tr>';
+        : `<tr><td colspan="4" class="empty">${t('home.none')}</td></tr>`;
       document.querySelectorAll('tr.row').forEach(r => r.onclick = () => location.href = r.dataset.href);
       $('#upl').classList.toggle('on', !!d.upload);
-      $('#backend').textContent = d.backend === 'n8n' ? `Agents run in n8n (${d.n8n_url}).` : 'Agents run in this app.';
-      $('#live').textContent = 'Live · ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
-      $('#gen').textContent = 'Updated ' + new Date().toLocaleTimeString();
-    } catch (e) { $('#live').textContent = 'Offline – retrying'; }
+      $('#backend').textContent = d.backend === 'n8n' ? t('home.backendN8n', {u: d.n8n_url}) : t('home.backendApp');
+      $('#live').textContent = t('home.live', {t: clock()});
+      $('#gen').textContent = t('home.updated', {t: clock()});
+    } catch (e) { $('#live').textContent = t('home.offline'); }
   }
   $('#file').addEventListener('change', async ev => {
     const f = ev.target.files[0]; if (!f) return;
-    const fd = new FormData(); fd.append('file', f); toast('Uploading ' + f.name + ' …');
-    try { const r = await fetch('/api/upload', { method: 'POST', body: fd }); const j = await r.json(); if (!r.ok) throw new Error(j.detail || r.statusText); toast('Both agents started'); load(); }
-    catch (e) { toast('Upload failed: ' + e.message); }
+    const fd = new FormData(); fd.append('file', f); toast(t('upload.sending', {f: f.name}));
+    try { const r = await fetch('/api/upload', { method: 'POST', body: fd }); const j = await r.json(); if (!r.ok) throw new Error(j.detail || r.statusText); toast(t('home.started')); load(); }
+    catch (e) { toast(t('upload.failed', {e: e.message})); }
     ev.target.value = '';
   });
   (async function loop() { try { await load(); } catch (e) {} setTimeout(loop, 10000); })();   // next refresh only after the last one finished
