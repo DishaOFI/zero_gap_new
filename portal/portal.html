@@ -185,7 +185,8 @@
   // step names come from the server in English; translated by their fixed key
   const stepTitle = s => I18N.has('step.' + s.key) ? t('step.' + s.key) : s.title;
   const stepText = s => I18N.has('step.' + s.key + '.d') ? t('step.' + s.key + '.d') : s.text;
-  const appName = c => c.applicant_name || t('p.newApp');
+  const appName = c => c.applicant_name ? I18N.tx(c.applicant_name) : t('p.newApp');
+  const tx = s => esc(I18N.tx(s));   // text written by the n8n flows, translated for display
   const fdur = ms => !ms ? '' : ms < 1000 ? `${ms} ms` : `${(ms/1000).toFixed(1)} s`;
   const toast = t => { const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 3500); };
 
@@ -248,7 +249,7 @@
         ${bar(it.left, it.target || 20)}<div class="s">${it.at_risk ? t('t.atRisk') : t('t.perPA04')}${it.due ? ' · ' + t('t.due', {d: fdate(it.due)}) : ''}</div></div>` : '',
       `<div class="tile ${esc_ ? 'warn' : r.route === 'letter' ? '' : 'ok'}"><div class="k">${ico(esc_ ? 'phone' : r.route === 'letter' ? 'letter' : 'check')}${t('t.next')}</div>
         <div class="v">${esc_ ? t('t.escalate') : r.route === 'letter' ? t('t.letter') : t('t.release')}</div>
-        <div class="s">${esc_ ? t('t.phone') : r.route === 'letter' ? t('t.to', {n: esc(r.addressee || t('t.applicant'))}) : t('t.noOutreach')}</div></div>`,
+        <div class="s">${esc_ ? t('t.phone') : r.route === 'letter' ? t('t.to', {n: (r.addressee ? tx(r.addressee) : t('t.applicant'))}) : t('t.noOutreach')}</div></div>`,
     ].filter(Boolean);
     return `<div class="tiles n${tiles.length}">${tiles.join('')}</div>`;
   }
@@ -268,18 +269,18 @@
       const ready = r.final_status === 'Ready for Assessment';
       const s = r.sla || {};
       const tiles = reviewTiles(r, ready, s);
-      const details = r.facts ? `<div class="sub">${t('r.details')}</div><table class="kv">${r.facts.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</table>` : `<table class="kv">
-        <tr><td>${t('r.applicant')}</td><td>${esc(c.applicant_name || '–')}${r.date_of_birth ? ' (' + t('r.born', {d: esc(r.date_of_birth)}) + ')' : ''}</td></tr>
+      const details = r.facts ? `<div class="sub">${t('r.details')}</div><table class="kv">${r.facts.map(([k, v]) => `<tr><td>${esc(I18N.field(k))}</td><td>${tx(v)}</td></tr>`).join('')}</table>` : `<table class="kv">
+        <tr><td>${t('r.applicant')}</td><td>${c.applicant_name ? tx(c.applicant_name) : '–'}${r.date_of_birth ? ' (' + t('r.born', {d: esc(r.date_of_birth)}) + ')' : ''}</td></tr>
         <tr><td>${t('r.memberCase')}</td><td>${esc(c.insurance_number || '–')} · ${esc(r.case_ref || '–')}</td></tr>
         <tr><td>${t('r.representative')}</td><td>${esc(r.representative || '–')}</td></tr>
-        ${(r.extra_facts || []).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}
-        ${r.route === 'escalation' ? `<tr><td>${t('r.whyEscalate')}</td><td>${esc((r.route_reasons || []).join('; '))}</td></tr>` : ''}
+        ${(r.extra_facts || []).map(([k, v]) => `<tr><td>${esc(I18N.field(k))}</td><td>${tx(v)}</td></tr>`).join('')}
+        ${r.route === 'escalation' ? `<tr><td>${t('r.whyEscalate')}</td><td>${(r.route_reasons || []).map(tx).join('; ')}</td></tr>` : ''}
       </table>`;
-      const items = (r.blocking.length ? `<div class="sub">${t('r.outstanding')}</div>` + r.blocking.map(x => `<div class="item bad"><b>${t('r.missingTag')}</b>${esc(x)}</div>`).join('') : '')
-                  + (r.checks.length ? `<div class="sub">${t('r.toCheck')}</div>` + r.checks.map(x => `<div class="item warn"><b>${t('r.checkTag')}</b>${esc(x)}</div>`).join('') : '');
-      const sugg = (r.suggestions || []).length ? `<div class="sub">${t('r.suggested')}</div>` + r.suggestions.map(x => `<div class="item info"><b>${t('r.suggestionTag')}</b>${esc(x)}</div>`).join('') : '';
-      const letter = r.letter ? `<div class="sub">${r.route === 'escalation' ? t('r.escNote') : t('r.draftTo', {n: esc(r.addressee || t('t.applicant'))})}</div><div class="letter">${esc(r.letter)}</div>` : '';
-      const disp = r.dispatch?.text ? `<div class="note" style="margin-top:10px">${esc(r.dispatch.text)}</div>` : '';
+      const items = (r.blocking.length ? `<div class="sub">${t('r.outstanding')}</div>` + r.blocking.map(x => `<div class="item bad"><b>${t('r.missingTag')}</b>${tx(x)}</div>`).join('') : '')
+                  + (r.checks.length ? `<div class="sub">${t('r.toCheck')}</div>` + r.checks.map(x => `<div class="item warn"><b>${t('r.checkTag')}</b>${tx(x)}</div>`).join('') : '');
+      const sugg = (r.suggestions || []).length ? `<div class="sub">${t('r.suggested')}</div>` + r.suggestions.map(x => `<div class="item info"><b>${t('r.suggestionTag')}</b>${tx(x)}</div>`).join('') : '';
+      const letter = r.letter ? `<div class="sub">${r.route === 'escalation' ? t('r.escNote') : t('r.draftTo', {n: (r.addressee ? tx(r.addressee) : t('t.applicant'))})}</div><div class="letter">${esc(r.letter)}</div>${I18N.lang === 'de' ? `<div class="note" style="margin-top:6px">${t('r.letterAsSent')}</div>` : ''}` : '';
+      const disp = r.dispatch?.text ? `<div class="note" style="margin-top:10px">${tx(r.dispatch.text)}</div>` : '';
 
       let actions = '';
       const o = r.dispatch?.options || {};

@@ -144,6 +144,7 @@
     'r.suggestionTag':    ['Suggestion', 'Vorschlag'],
     'r.escNote':          ['Escalation note to the Case Manager', 'Eskalationsnotiz an den Fallmanager'],
     'r.draftTo':          ['Draft letter to {n}', 'Entwurf des Schreibens an {n}'],
+    'r.letterAsSent':     ['', 'Das Schreiben wird von n8n erstellt und genau so versendet – deshalb wird es hier nicht übersetzt.'],
     // decision
     'd.recorded':         ['Decision recorded:', 'Entscheidung erfasst:'],
     'd.sentCM':           [' – escalation sent to the Case Manager', ' – Eskalation an den Fallmanager gesendet'],
@@ -208,6 +209,96 @@
     return lang === 'de' ? `${+m[3]}. ${MONTHS.de[+m[2] - 1]} ${m[1]}` : `${+m[3]} ${MONTHS.en[+m[2] - 1]} ${m[1]}`;
   };
 
+  // ---- texts written by the n8n flows (fixed sentence templates in their code) – translated for display only.
+  // Anything that matches no rule is shown unchanged. Letters are not translated: they are what is sent.
+  const MON_EN = { january: 0, february: 1, march: 2, april: 3, may: 4, june: 5, july: 6, august: 7, september: 8, october: 9, november: 10, december: 11,
+    jan: 0, feb: 1, mar: 2, apr: 3, jun: 5, jul: 6, aug: 7, sep: 8, sept: 8, oct: 9, nov: 10, dec: 11 };
+  const MON_DE_LONG = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+  const dates = s => s.replace(/\b(\d{1,2}) (January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept?|Oct|Nov|Dec)\.? (\d{4})\b/g,
+    (m, d, mon, y) => { const i = MON_EN[mon.toLowerCase()]; return `${d}. ${mon.length > 4 ? MON_DE_LONG[i] : MONTHS.de[i]} ${y}`; });
+  const SECTION = { 'Applicant Data': 'Antragsdaten', 'Type of Benefit': 'Leistungsart', 'Execution': 'Unterschrift', 'Medical Contacts': 'Ärztliche Kontakte',
+    'Legal Representation': 'Gesetzliche Vertretung' };
+  const REL = { son: 'Sohn', daughter: 'Tochter', spouse: 'Ehepartner/in', wife: 'Ehefrau', husband: 'Ehemann', partner: 'Partner/in', mother: 'Mutter',
+    father: 'Vater', brother: 'Bruder', sister: 'Schwester', child: 'Kind', guardian: 'Betreuer/in', friend: 'Freund/in', neighbour: 'Nachbar/in',
+    neighbor: 'Nachbar/in', carer: 'Pflegeperson', 'legal guardian': 'gesetzliche/r Betreuer/in', 'authorized person': 'bevollmächtigte Person' };
+  const FIELD = {
+    'Applicant': 'Antragsteller/in', 'Address': 'Anschrift', 'Member number': 'Versichertennummer', 'Case reference': 'Aktenzeichen',
+    'Representative': 'Vertreter/in', 'Benefit applied for': 'Beantragte Leistung', 'GP (Hausarzt)': 'Hausarzt/Hausärztin', 'Care level': 'Pflegegrad',
+    'Statutory decision deadline': 'Gesetzliche Entscheidungsfrist', 'Internal service target': 'Internes Serviceziel', 'Next step': 'Nächster Schritt',
+    'Policy amendments applied': 'Angewandte Richtlinienänderungen', 'Caregiver': 'Pflegeperson', 'E-mail': 'E-Mail', 'Monthly benefit': 'Monatliche Leistung',
+    'Escalation': 'Eskalation', 'Telephone': 'Telefon', 'Date of birth': 'Geburtsdatum',
+  };
+  const WHOLE = {
+    'Not specified': 'Nicht angegeben', 'Not provided': 'Nicht angegeben', 'Not yet assessed': 'Noch nicht begutachtet', 'New application': 'Neuer Antrag',
+    'the applicant': 'die antragstellende Person', 'applicant': 'Antragsteller/in', 'family member (assumed)': 'Familienangehörige/r (angenommen)',
+    'family doctor at the applicant’s address (assumed)': 'Hausarzt am Wohnort der antragstellenden Person (angenommen)',
+    'Bank details and last three bank statements – mandatory.': 'Bankverbindung und die letzten drei Kontoauszüge – verpflichtend.',
+    'Care provider contract – mandatory.': 'Vertrag mit dem Pflegedienst – verpflichtend.',
+    'Copy of the applicant’s identity card – mandatory.': 'Kopie des Personalausweises der antragstellenden Person – verpflichtend.',
+    'Hospital discharge report (Entlassungsbericht) – mandatory.': 'Krankenhaus-Entlassungsbericht – verpflichtend.',
+    'Medical reports and diagnosis from all treating doctors – mandatory.': 'Arztberichte und Diagnosen aller behandelnden Ärztinnen und Ärzte – verpflichtend.',
+    'Current address is missing.': 'Die aktuelle Anschrift fehlt.',
+    'Date of birth is missing.': 'Das Geburtsdatum fehlt.',
+    'Full name of the applicant is missing.': 'Der vollständige Name der antragstellenden Person fehlt.',
+    'Insurance / member number is missing.': 'Die Versichertennummer fehlt.',
+    'GP (Hausarzt) name and address missing.': 'Name und Anschrift des Hausarztes fehlen.',
+    'No benefit type selected. The MD assessment can still be commissioned, but a benefit type is required before a decision can be issued.':
+      'Keine Leistungsart gewählt. Der Medizinische Dienst kann bereits beauftragt werden, vor der Entscheidung muss aber eine Leistungsart vorliegen.',
+    'No type of benefit selected – required before the decision can be issued (the Medical Service can still be commissioned).':
+      'Keine Leistungsart gewählt – vor der Entscheidung erforderlich (der Medizinische Dienst kann bereits beauftragt werden).',
+    'Signature missing – unsigned forms cannot initiate processing.': 'Unterschrift fehlt – nicht unterschriebene Formulare können die Bearbeitung nicht auslösen.',
+    'ARIS unavailable – verify case link and SLA start manually.': 'ARIS nicht erreichbar – Fallverknüpfung und Fristbeginn bitte manuell prüfen.',
+    'GP (Hausarzt) name and address missing – needed to request the medical history before the assessment.':
+      'Name und Anschrift des Hausarztes fehlen – nötig, um vor der Begutachtung die Krankengeschichte anzufordern.',
+    'GP name/address missing – needed to request medical history before assessment.':
+      'Name und Anschrift des Hausarztes fehlen – nötig, um vor der Begutachtung die Krankengeschichte anzufordern.',
+    'Guardianship certificate declared as enclosed but not received as a file.': 'Betreuungsausweis als beigefügt angegeben, aber nicht als Datei erhalten.',
+    'No ARIS case found – treated as new, unlinked application; SLA start = email receipt (verify first contact).':
+      'Kein ARIS-Fall gefunden – als neuer, nicht verknüpfter Antrag behandelt; Fristbeginn = E-Mail-Eingang (Erstkontakt prüfen).',
+    'No specialists listed (optional but preferred).': 'Keine Fachärzte angegeben (optional, aber erwünscht).',
+    'No email or postal address on file – send manually.': 'Weder E-Mail- noch Postanschrift hinterlegt – bitte manuell versenden.',
+  };
+  const SUGGEST = { 'the benefit type': 'die Leistungsart liegt', 'the general practitioner': 'die Angabe zum Hausarzt liegt',
+    'the representative identity proof': 'der Identitätsnachweis der bevollmächtigten Person liegt' };
+  const RULES = [
+    [/^(.+) \(born (.+)\)$/, (m, n, d) => `${n === 'the applicant' ? WHOLE[n] : n} (geb. ${d})`],
+    [/^(.+) \(family caregiver, assumed\)$/, (m, n) => `${n} (pflegende/r Angehörige/r, angenommen)`],
+    [/^(.+) \(([a-z ]+)\)$/, (m, n, r) => REL[r] ? `${n} (${REL[r]})` : m],
+    [/^(.+) \((\d+) working days remaining\)$/, (m, d, n) => `${d} (noch ${n} Arbeitstage)`],
+    [/^(\d+) working days remaining$/, (m, n) => `noch ${n} Arbeitstage`],
+    [/^Letter to (.+) – after your approval$/, (m, n) => `Schreiben an ${n === 'the applicant' ? WHOLE[n] : n} – nach Ihrer Freigabe`],
+    [/^Escalation to the Case Manager – a missing-information request was already sent on (.+?)( \(per (.+)\))?$/,
+      (m, d, x, p) => `Eskalation an den Fallmanager – eine Nachforderung wurde bereits am ${d} gesendet${p ? ` (gemäß ${p})` : ''}`],
+    [/^a missing-information request was already sent on (.+)$/, (m, d) => `eine Nachforderung wurde bereits am ${d} gesendet`],
+    [/^Level (\d+) – (Team Lead|Case Manager)$/, (m, n, o) => `Stufe ${n} – ${o === 'Team Lead' ? 'Teamleitung' : 'Fallmanager'}`],
+    [/^Identity proof of authorized representative (.+?) is missing – Vollmacht \(power of attorney\): identity check covers the applicant only\.$/,
+      (m, n) => `Identitätsnachweis der bevollmächtigten Person ${n} fehlt – Vollmacht: Die Identitätsprüfung umfasst nur die antragstellende Person.`],
+    [/^Identity proof of authorized representative (.+?) is missing\.$/, (m, n) => `Identitätsnachweis der bevollmächtigten Person ${n} fehlt.`],
+    [/^Check earlier ARIS case (\S+) – (the benefit type|the general practitioner|the representative identity proof) may already be on file there \(suggestion only\)\.$/,
+      (m, c, w) => `Früheren ARIS-Fall ${c} prüfen – ${SUGGEST[w]} dort eventuell bereits vor (nur Vorschlag).`],
+    [/^After approval the escalation is sent to the Case Manager \((.+?)\) for phone outreach today$/,
+      (m, e) => `Nach der Freigabe geht die Eskalation an den Fallmanager (${e}) – telefonische Kontaktaufnahme noch heute`],
+    [/^After approval the letter can be emailed to (\S+) or printed and posted to (.+)\.$/,
+      (m, e, a) => `Nach der Freigabe kann das Schreiben per E-Mail an ${e} gesendet oder gedruckt und per Post an ${a} geschickt werden.`],
+    [/^No email address on file – after approval the letter is printed and posted to (.+)\.$/,
+      (m, a) => `Keine E-Mail-Adresse hinterlegt – nach der Freigabe wird das Schreiben gedruckt und per Post an ${a} geschickt.`],
+  ];
+  // "(per Operating Procedure §3 (Applicant Data))" / "(per PA-2026-02)" at the end of a sentence
+  const PER = /\s*\(per (?:Operating Procedure (§\d+) \(([^)]+)\)|([^()]+))\)(\.?)$/;
+  const perDe = (m, sec, name, other, dot) => ` (gemäß ${sec ? `Verfahrensanweisung ${sec} (${SECTION[name] || name})` : other})${dot}`;
+
+  function tx(text) {
+    if (lang !== 'de' || text == null || text === '') return text;
+    let s = String(text).trim(), tail = '';
+    const per = s.match(PER);
+    if (per) { tail = s.slice(per.index).replace(PER, perDe); s = s.slice(0, per.index); }
+    let out = WHOLE[s] ?? WHOLE[s + '.']?.slice(0, -1);
+    if (out == null) for (const [re, fn] of RULES) { if (re.test(s)) { out = s.replace(re, fn); break; } }
+    if (out == null) out = s;
+    return dates(out + tail);
+  }
+  const field = k => (lang === 'de' && FIELD[k]) || k;
+
   function apply(root = document) {
     document.documentElement.lang = lang;
     root.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
@@ -237,5 +328,5 @@
   });
   document.documentElement.lang = lang;
 
-  window.I18N = { lang, t, has, date, locale, apply, setLang };
+  window.I18N = { lang, t, has, date, locale, apply, setLang, tx, field };
 })();
