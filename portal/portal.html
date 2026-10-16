@@ -232,6 +232,9 @@
     let n = 0; for (const d = new Date(d0); d < d1; d.setDate(d.getDate() + 1)) if (d.getDay() % 6) n++; return n; };
   const bar = (left, total) => total > 0 && left != null ? `<div class="bar"><i style="width:${Math.max(0, Math.min(100, Math.round(left / total * 100)))}%"></i></div>` : '';
 
+  // the amendment that governs a rule on this run (e.g. key 'internal_target'), from the run data – never a fixed ID
+  const amendCite = (r, key) => ((r.policy?.amendments || []).find(a => a.key === key) || {}).id;
+
   function reviewTiles(r, ready, s) {
     const n = (r.blocking || []).length;
     const left = s.statutory_left, total = workdays(s.start, s.deadline) || Math.max(25, left || 0);
@@ -246,10 +249,10 @@
         ${left >= 0 ? bar(left, total) : ''}<div class="s">${t('t.due', {d: fdate(s.deadline)})}</div></div>`,
       it ? `<div class="tile ${it.at_risk ? 'bad' : 'warn'}"><div class="k">${ico('target')}${t('t.internal')}</div>
         <div class="num"><b>${it.left}</b><span>${t('t.ofLeft', {n: it.target || 20})}</span></div>
-        ${bar(it.left, it.target || 20)}<div class="s">${it.at_risk ? t('t.atRisk') : t('t.perPA04')}${it.due ? ' · ' + t('t.due', {d: fdate(it.due)}) : ''}</div></div>` : '',
+        ${bar(it.left, it.target || 20)}<div class="s">${[it.at_risk ? t('t.atRisk') : amendCite(r, 'internal_target') ? t('t.per', {p: amendCite(r, 'internal_target')}) : '', it.due ? t('t.due', {d: fdate(it.due)}) : ''].filter(Boolean).join(' · ')}</div></div>` : '',
       `<div class="tile ${esc_ ? 'warn' : r.route === 'letter' ? '' : 'ok'}"><div class="k">${ico(esc_ ? 'phone' : r.route === 'letter' ? 'letter' : 'check')}${t('t.next')}</div>
         <div class="v">${esc_ ? t('t.escalate') : r.route === 'letter' ? t('t.letter') : t('t.release')}</div>
-        <div class="s">${esc_ ? t('t.phone') : r.route === 'letter' ? t('t.to', {n: (r.addressee ? tx(r.addressee) : t('t.applicant'))}) : t('t.noOutreach')}</div></div>`,
+        <div class="s">${esc_ ? t('t.phone') + (amendCite(r, 'escalation_routing') ? ' · ' + t('t.per', {p: amendCite(r, 'escalation_routing')}) : '') : r.route === 'letter' ? t('t.to', {n: (r.addressee ? tx(r.addressee) : t('t.applicant'))}) : t('t.noOutreach')}</div></div>`,
     ].filter(Boolean);
     return `<div class="tiles n${tiles.length}">${tiles.join('')}</div>`;
   }
@@ -272,17 +275,25 @@
       // German texts written by the flow (r.de) when DE is selected; runs from before the flows were bilingual fall back to the display translation
       const DE = I18N.lang === 'de', G = r.de || {};
       const pick = (de, en) => DE && de ? esc(de) : tx(en);
-      const rows = (de, en) => DE && de ? de.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')
-        : (en || []).map(([k, v]) => `<tr><td>${esc(I18N.field(k))}</td><td>${tx(v)}</td></tr>`).join('');
-      const details = r.facts ? `<div class="sub">${t('r.details')}</div><table class="kv">${rows(G.facts, r.facts)}</table>` : `<table class="kv">
+      // policy amendments: every PA document found in ARIS on this run, new ones flagged – replaces the flow's own row
+      const AMEND_ROW = /^(Policy amendments applied|Angewendete Policy Amendments)$/;
+      const applied = new Set((r.policy?.amendments || []).map(a => a.id));
+      const amendIds = [...new Set([...(r.policy?.found || []), ...applied])].sort();
+      const unknown = amendIds.filter(id => !applied.has(id));
+      const amendRow = amendIds.length ? `<tr><td>${t('r.amendments')}</td><td>${amendIds.map(id => esc(id) + (applied.has(id) ? '' : ' ' + t('r.notApplied'))).join(', ')}</td></tr>` : '';
+      const rows = (de, en) => DE && de ? de.filter(([k]) => !AMEND_ROW.test(k)).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')
+        : (en || []).filter(([k]) => !AMEND_ROW.test(k)).map(([k, v]) => `<tr><td>${esc(I18N.field(k))}</td><td>${tx(v)}</td></tr>`).join('');
+      const details = r.facts ? `<div class="sub">${t('r.details')}</div><table class="kv">${rows(G.facts, r.facts)}${amendRow}</table>` : `<table class="kv">
         <tr><td>${t('r.applicant')}</td><td>${c.applicant_name ? tx(c.applicant_name) : '–'}${r.date_of_birth ? ' (' + t('r.born', {d: esc(r.date_of_birth)}) + ')' : ''}</td></tr>
         <tr><td>${t('r.memberCase')}</td><td>${esc(c.insurance_number || '–')} · ${esc(r.case_ref || '–')}</td></tr>
         <tr><td>${t('r.representative')}</td><td>${esc(r.representative || '–')}</td></tr>
-        ${rows(G.extra_facts, r.extra_facts)}
+        ${rows(G.extra_facts, r.extra_facts)}${amendRow}
         ${r.route === 'escalation' ? `<tr><td>${t('r.whyEscalate')}</td><td>${(DE && (G.route_reasons || []).length ? G.route_reasons.map(esc) : (r.route_reasons || []).map(tx)).join('; ')}</td></tr>` : ''}
       </table>`;
       const items = (r.blocking.length ? `<div class="sub">${t('r.outstanding')}</div>` + r.blocking.map((x, i) => `<div class="item bad"><b>${t('r.missingTag')}</b>${pick((G.blocking || [])[i], x)}</div>`).join('') : '')
-                  + (r.checks.length ? `<div class="sub">${t('r.toCheck')}</div>` + r.checks.map((x, i) => `<div class="item warn"><b>${t('r.checkTag')}</b>${pick((G.checks || [])[i], x)}</div>`).join('') : '');
+                  + (r.checks.length || unknown.length ? `<div class="sub">${t('r.toCheck')}</div>`
+                    + unknown.map(p => `<div class="item warn"><b>${t('r.checkTag')}</b>${esc(t('r.unknownAmendment', {p}))}</div>`).join('')
+                    + r.checks.map((x, i) => `<div class="item warn"><b>${t('r.checkTag')}</b>${pick((G.checks || [])[i], x)}</div>`).join('') : '');
       const sugg = (r.suggestions || []).length ? `<div class="sub">${t('r.suggested')}</div>` + r.suggestions.map((x, i) => `<div class="item info"><b>${t('r.suggestionTag')}</b>${pick((G.suggestions || [])[i], x)}</div>`).join('') : '';
       // the German letter is the one that is sent; the English one is a reference copy
       const letterNote = G.letter ? (DE ? t('r.sentDe') : t('r.refCopy')) : (DE ? t('r.onlyEn') : '');

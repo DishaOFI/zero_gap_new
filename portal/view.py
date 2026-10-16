@@ -1,5 +1,6 @@
 """Turns n8n executions of the two Zero Gap Agent flows into the progress + review data the portal shows."""
 from __future__ import annotations
+import re
 
 CATALOGUE = {
     'C1': ['Collection', 'Context from previous cases involving the wrong person', 'Privacy breach, disclosure of personal data, incorrect case association'],
@@ -115,7 +116,11 @@ def _case(run: dict, steps: list[dict]) -> dict:
             'blocking': [f.get('message') for f in r.get('hard_failures') or []], 'checks': [f.get('message') for f in r.get('soft_warnings') or []],
             'notes': [f.get('message') for f in r.get('info') or []],
             'policy': {'source': 'SOPs' if zero else 'SOPs and policy amendments', 'documents': [d.get('title') for d in (r.get('policy') or {}).get('documents') or []],
-                       'amendments': (r.get('policy') or {}).get('amendments') or []},
+                       'amendments': (r.get('policy') or {}).get('amendments') or [],
+                       # every policy amendment document read from ARIS on this run (titled PA-YYYY-NN from its text) –
+                       # also new ones the flow's rule catalogue does not know yet
+                       'found': sorted({str(d.get('title')) for d in (r.get('policy') or {}).get('documents') or []
+                                        if re.fullmatch(r'PA-\d{4}-\d{2}', str(d.get('title') or ''))})},
             'policy_view': r.get('policy_view') or [],
             'suggestions': [] if zero else [x.get('text') for x in r.get('suggestions') or []],
             'provenance': r.get('provenance') or [],
