@@ -11,7 +11,10 @@ KEEP_OUTPUT = {'Build Case File', 'Completeness Rules Engine', 'Zero-Context Age
                'Wait for Caseworker Decision', 'APPROVED: Release for Dispatch', 'REJECTED: Manual Handling'}
 MAX_KEPT = 300   # trimmed executions kept in memory
 GONE: dict = {}  # marker: no execution with this id
-LOOKAHEAD = 5    # execution ids above the newest listed one that are probed (a run that has just started)
+LOOKAHEAD = 60         # ids probed above the newest known execution – runs the instance does not keep use up ids too
+FIRST_LOOKAHEAD = 300  # the same on the first scan after the portal (re)starts
+MISS_TTL = 30          # seconds a not-yet-existing id above the newest known execution is not asked again
+PARALLEL = 16          # ids fetched at the same time
 
 
 class N8nBackend:
@@ -24,7 +27,11 @@ class N8nBackend:
         self._hidden: tuple[float, dict[str, list[dict]]] = (0, {})   # (fetched_at, agent -> executions the list leaves out)
         self._skip: set[int] = set()                           # probed ids that are deleted or belong to other workflows
         self._ours: set[int] = set()                           # hidden ids of our flows, probed until the list shows them
+        self._frontier = 0                                     # newest execution id known to exist (any workflow)
+        self._miss: dict[int, float] = {}                      # ids above the frontier not found yet -> when they were asked
         self.workflows = {'aris': settings.n8n_workflow_aris, 'zero': settings.n8n_workflow_zero}
+        # one pool of kept-alive connections: a new TLS connection per request made the id search ~5x slower
+        self._http = httpx.Client(timeout=60, limits=httpx.Limits(max_connections=PARALLEL, max_keepalive_connections=PARALLEL))
 
     def _check(self) -> None:
         if not (self.s.n8n_url and self.s.n8n_api_key):
@@ -32,7 +39,7 @@ class N8nBackend:
 
     def _get(self, path: str, params: dict) -> dict:
         self._check()
-        r = httpx.get(f'{self.s.n8n_url}/api/v1{path}', params=params, timeout=60,
+        r = self._http.get(f'{self.s.n8n_url}/api/v1{path}', params=params,
                       headers={'X-N8N-API-KEY': self.s.n8n_api_key, 'accept': 'application/json'})
         if r.status_code >= 400:
             raise RuntimeError(f'n8n API {r.status_code}: {r.text[:200]}')
@@ -67,37 +74,66 @@ class N8nBackend:
 
     def _unlisted(self) -> dict[str, list[dict]]:
         """Executions n8n's list leaves out because n8n still holds them as active: running, or paused at
-        'Wait for Caseworker Decision'. They are found by id – ids are sequential across the instance, so every id
-        missing between the listed ones (plus a few above the newest) is fetched directly."""
+        'Wait for Caseworker Decision'. They are found by id – ids are sequential across the instance: every id missing
+        between the listed ones is fetched directly, and so are the ids above the newest known execution (runs this
+        instance does not keep leave long gaps there, so the search goes on as long as executions turn up)."""
         if time.time() - self._hidden[0] < self.ttl:
             return self._hidden[1]
         listed = {int(e['id']) for e in self._get('/executions', {'limit': 100}).get('data') or []}
         if not listed:
             return {}
         low, top = min(listed), max(listed)
+        span = FIRST_LOOKAHEAD if not self._frontier else LOOKAHEAD
+        self._frontier = max(self._frontier, top)
+        now = time.time()
         self._skip = {i for i in self._skip if i >= low}
-        probe = sorted({i for i in range(low, top + LOOKAHEAD + 1) if i not in listed and i not in self._skip} | (self._ours - listed))
-        with ThreadPoolExecutor(8) as pool:
-            found = list(pool.map(self._probe, probe))
+        self._miss = {i: t for i, t in self._miss.items() if now - t < MISS_TTL and i > self._frontier}
         ours = {wf: agent for agent, wf in self.workflows.items() if wf}
         out: dict[str, list[dict]] = {}
-        for i, e in zip(probe, found):
-            if e is None:      # n8n did not answer – try again next time
-                continue
-            if e is GONE or e.get('workflowId') not in ours:
-                self._ours.discard(i)
-                if i <= top:   # deleted, or another workflow's run: never ours later
-                    self._skip.add(i)
-                continue
-            self._ours.add(i)
-            out.setdefault(ours[e['workflowId']], []).append(e)
+        seen: set[int] = set()
+
+        def scan(ids) -> int:
+            """Fetch the ids (in parallel); returns the highest id that exists."""
+            ids = [i for i in ids if i not in self._skip and i not in self._miss and i not in seen]
+            seen.update(ids)
+            with ThreadPoolExecutor(PARALLEL) as pool:
+                found = list(pool.map(self._probe, ids))
+            newest = 0
+            for i, e in zip(ids, found):
+                if e is None:          # n8n did not answer – try again next time
+                    continue
+                if e is GONE:
+                    self._ours.discard(i)
+                    if i <= self._frontier:
+                        self._skip.add(i)    # below an existing execution: deleted for good
+                    else:
+                        self._miss[i] = now  # may not exist yet
+                    continue
+                newest = max(newest, i)
+                if e.get('workflowId') not in ours:
+                    self._skip.add(i)        # another workflow's run: never ours
+                    continue
+                self._ours.add(i)
+                out.setdefault(ours[e['workflowId']], []).append(e)
+            return newest
+
+        scan(sorted({i for i in range(low, top) if i not in listed} | (self._ours - listed)))
+        for _ in range(10):   # above the newest known execution, further up while executions turn up
+            start = self._frontier
+            newest = scan(range(start + 1, start + span + 1))
+            if newest <= start:
+                break
+            self._frontier = newest
+            for i in [i for i in self._miss if i <= newest]:   # gaps below an existing execution are deleted runs
+                self._miss.pop(i)
+                self._skip.add(i)
         self._hidden = (time.time(), out)
         return out
 
     def _probe(self, eid: int) -> dict | None:
         """The execution without its data, GONE when n8n has no such id, None when n8n did not answer."""
         try:
-            r = httpx.get(f'{self.s.n8n_url}/api/v1/executions/{eid}', timeout=30,
+            r = self._http.get(f'{self.s.n8n_url}/api/v1/executions/{eid}', timeout=30,
                           headers={'X-N8N-API-KEY': self.s.n8n_api_key, 'accept': 'application/json'})
         except httpx.HTTPError:
             return None
