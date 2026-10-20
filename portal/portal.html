@@ -220,33 +220,25 @@
   const ICON = {
     result: '<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/>',
     alert: '<circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/>',
-    calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',
     target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
     letter: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
     phone: '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/>',
     check: '<path d="M20 6L9 17l-5-5"/>',
   };
   const ico = k => `<i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICON[k]}</svg></i>`;
-  // working days (Mon–Fri) from a to b, for the "time left" bars
-  const workdays = (a, b) => { const d0 = new Date(a), d1 = new Date(b); if (isNaN(d0) || isNaN(d1) || d1 <= d0) return null;
-    let n = 0; for (const d = new Date(d0); d < d1; d.setDate(d.getDate() + 1)) if (d.getDay() % 6) n++; return n; };
-  const bar = (left, total) => total > 0 && left != null ? `<div class="bar"><i style="width:${Math.max(0, Math.min(100, Math.round(left / total * 100)))}%"></i></div>` : '';
+  const bar =(left, total) => total > 0 && left != null ? `<div class="bar"><i style="width:${Math.max(0, Math.min(100, Math.round(left / total * 100)))}%"></i></div>` : '';
 
   // the amendment that governs a rule on this run (e.g. key 'internal_target'), from the run data – never a fixed ID
   const amendCite = (r, key) => ((r.policy?.amendments || []).find(a => a.key === key) || {}).id;
 
   function reviewTiles(r, ready, s) {
     const n = (r.blocking || []).length;
-    const left = s.statutory_left, total = workdays(s.start, s.deadline) || Math.max(25, left || 0);
     const it = s.internal;
     const esc_ = r.route === 'escalation';
     const tiles = [
       `<div class="tile ${ready ? 'ok' : 'bad'}"><div class="k">${ico(ready ? 'result' : 'alert')}${t('t.result')}</div>
         <div class="v tone">${ready ? t('t.ready') : t('t.missing')}</div>
         <div class="s">${n ? t(n === 1 ? 't.items1' : 't.itemsN', {n}) : t('t.nothing')}</div></div>`,
-      `<div class="tile ${left < 0 ? 'bad' : left <= 10 ? 'warn' : 'ok'}"><div class="k">${ico('calendar')}${t('t.statutory')}</div>
-        <div class="num"><b>${left == null ? '–' : Math.abs(left)}</b><span>${left < 0 ? t('t.overdue') : t('t.left')}</span></div>
-        ${left >= 0 ? bar(left, total) : ''}<div class="s">${t('t.due', {d: fdate(s.deadline)})}</div></div>`,
       it ? `<div class="tile ${it.at_risk ? 'bad' : 'warn'}"><div class="k">${ico('target')}${t('t.internal')}</div>
         <div class="num"><b>${it.left}</b><span>${t('t.ofLeft', {n: it.target || 20})}</span></div>
         ${bar(it.left, it.target || 20)}<div class="s">${[it.at_risk ? t('t.atRisk') : amendCite(r, 'internal_target') ? t('t.per', {p: amendCite(r, 'internal_target')}) : '', it.due ? t('t.due', {d: fdate(it.due)}) : ''].filter(Boolean).join(' · ')}</div></div>` : '',
