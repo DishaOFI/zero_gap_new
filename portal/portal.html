@@ -77,10 +77,10 @@
   .dur{color:var(--faint);font-weight:500;font-size:12px}
   /* summary tiles */
   .sec{container-type:inline-size}
-  .tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:20px}
-  @container (min-width:720px){.tiles.n4{grid-template-columns:repeat(4,minmax(0,1fr))}.tiles.n3{grid-template-columns:repeat(3,minmax(0,1fr))}}
-  @container (max-width:719px){.tiles.n3 .tile:last-child{grid-column:span 2}}
-  @container (max-width:340px){.tiles{grid-template-columns:1fr}.tiles.n3 .tile:last-child{grid-column:auto}}
+  /* all tiles in one row; stacked only when the panel is phone-narrow */
+  .tiles{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:12px;margin-bottom:20px}
+  @container (max-width:700px){.tile{padding:14px 12px 12px}.tile .num b{font-size:26px}.tile .v{font-size:15px}.tile .k{font-size:10.5px;gap:6px}}
+  @container (max-width:420px){.tiles{grid-auto-flow:row}}
   .tile{--tone:var(--brand);--tone-soft:var(--brand-soft);position:relative;overflow:hidden;border:1px solid var(--line);border-radius:12px;padding:16px 16px 14px;background:#fff;display:flex;flex-direction:column;gap:6px;min-width:0}
   .tile::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:var(--tone)}
   .tile.ok{--tone:var(--ok);--tone-soft:var(--ok-soft)} .tile.warn{--tone:var(--warn);--tone-soft:var(--warn-soft)} .tile.bad{--tone:var(--bad);--tone-soft:var(--bad-soft)}
