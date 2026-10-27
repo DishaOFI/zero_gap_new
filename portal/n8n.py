@@ -31,7 +31,7 @@ class N8nBackend:
         self._miss: dict[int, float] = {}                      # ids above the frontier not found yet -> when they were asked
         self.workflows = {'aris': settings.n8n_workflow_aris, 'zero': settings.n8n_workflow_zero}
         # one pool of kept-alive connections: a new TLS connection per request made the id search ~5x slower
-        self._http = httpx.Client(timeout=60, limits=httpx.Limits(max_connections=PARALLEL, max_keepalive_connections=PARALLEL))
+        self._http = httpx.Client(timeout=60, verify=settings.n8n_verify_tls, limits=httpx.Limits(max_connections=PARALLEL, max_keepalive_connections=PARALLEL))
 
     def _check(self) -> None:
         if not (self.s.n8n_url and self.s.n8n_api_key):
@@ -192,6 +192,6 @@ class N8nBackend:
         self._cache.clear()   # show the decision on the next refresh
         self._hidden = (0, {})
         params = {'decision': decision, **({'channel': channel} if channel else {}), **({'lang': lang} if lang else {})}   # lang: letter language Prepare Dispatch sends
-        r = httpx.get(f'{self.s.n8n_url}/webhook-waiting/{exec_id}', params=params, timeout=60)
+        r = httpx.get(f'{self.s.n8n_url}/webhook-waiting/{exec_id}', params=params, timeout=60, verify=self.s.n8n_verify_tls)
         if r.status_code >= 400:
             raise RuntimeError(f'n8n did not accept the decision ({r.status_code}). Use the buttons in the review e-mail instead.')
