@@ -14,7 +14,8 @@ GONE: dict = {}  # marker: no execution with this id
 LOOKAHEAD = 60         # ids probed above the newest known execution – runs the instance does not keep use up ids too
 FIRST_LOOKAHEAD = 300  # the same on the first scan after the portal (re)starts
 MISS_TTL = 30          # seconds a not-yet-existing id above the newest known execution is not asked again
-MAX_GAP = 2000         # how far above the newest known execution the search may go (a little further each refresh)
+NEAR = 16              # ids right above the newest known execution, asked again on every refresh (a new run shows up at once)
+MAX_GAP = 2000        # how far above the newest known execution the search may go (a little further each refresh)
 PARALLEL = 16          # ids fetched at the same time
 
 
@@ -24,7 +25,7 @@ class N8nBackend:
         self._cache: dict[str, tuple[float, int, list, list]] = {}   # agent -> (fetched_at, limit, latest runs, older waiting runs)
         self._kept: dict[str, tuple[str, tuple]] = {}          # execution id -> (status, trimmed run); data only changes while running
         self._lock = threading.Lock()                          # one n8n request at a time, however many browsers poll
-        self.ttl = 5                                           # seconds an answer from n8n is reused
+        self.ttl = 2                                           # seconds an answer from n8n is reused
         self._hidden: tuple[float, dict[str, list[dict]]] = (0, {})   # (fetched_at, agent -> executions the list leaves out)
         self._skip: set[int] = set()                           # probed ids that are deleted or belong to other workflows
         self._ours: set[int] = set()                           # hidden ids of our flows, probed until the list shows them
@@ -121,6 +122,8 @@ class N8nBackend:
         scan(sorted({i for i in range(low, top) if i not in listed} | (self._ours - listed)))
         for _ in range(10):   # above the newest known execution, further up while executions turn up
             start = self._frontier
+            for i in range(start + 1, start + NEAR + 1):   # the next run is most likely here: asked on every refresh
+                self._miss.pop(i, None)
             # the next ids not asked recently: a gap longer than one lookahead is crossed over a few refreshes
             ids = [i for i in range(start + 1, start + MAX_GAP + 1) if i not in self._miss and i not in self._skip and i not in seen][:span]
             newest = scan(ids)
