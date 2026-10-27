@@ -158,8 +158,14 @@ def _case(run: dict, steps: list[dict]) -> dict:
     }
 
 
+def _shown(c: dict) -> bool:
+    """Runs still in progress or waiting for the caseworker, and finished runs that produced a case review.
+    Failed runs and test runs that finished without reading a case are left out."""
+    return c['status'] in ('running', 'new', 'waiting') or (c['status'] == 'success' and bool(c['review']))
+
+
 def portal_view(n8n, agent: str, limit: int = 25) -> dict:
     import time
-    cases = [_case(run, steps) for run, steps in n8n.runs(agent, limit)]
+    cases = [c for c in (_case(run, steps) for run, steps in n8n.runs(agent, limit)) if _shown(c)]
     return {'generated_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
             'flow_label': 'agent without ARIS context' if agent == 'zero' else 'agent with ARIS context', 'cases': cases}
