@@ -14,6 +14,7 @@ GONE: dict = {}  # marker: no execution with this id
 LOOKAHEAD = 60         # ids probed above the newest known execution – runs the instance does not keep use up ids too
 FIRST_LOOKAHEAD = 300  # the same on the first scan after the portal (re)starts
 MISS_TTL = 30          # seconds a not-yet-existing id above the newest known execution is not asked again
+MAX_GAP = 2000         # how far above the newest known execution the search may go (a little further each refresh)
 PARALLEL = 16          # ids fetched at the same time
 
 
@@ -120,7 +121,9 @@ class N8nBackend:
         scan(sorted({i for i in range(low, top) if i not in listed} | (self._ours - listed)))
         for _ in range(10):   # above the newest known execution, further up while executions turn up
             start = self._frontier
-            newest = scan(range(start + 1, start + span + 1))
+            # the next ids not asked recently: a gap longer than one lookahead is crossed over a few refreshes
+            ids = [i for i in range(start + 1, start + MAX_GAP + 1) if i not in self._miss and i not in self._skip and i not in seen][:span]
+            newest = scan(ids)
             if newest <= start:
                 break
             self._frontier = newest
