@@ -159,9 +159,9 @@ def _case(run: dict, steps: list[dict]) -> dict:
 
 
 def _shown(c: dict) -> bool:
-    """Runs still in progress or waiting for the caseworker, and finished runs that produced a case review.
-    Failed runs and test runs that finished without reading a case are left out."""
-    return c['status'] in ('running', 'new', 'waiting') or (c['status'] == 'success' and bool(c['review']))
+    """Every case except finished runs that never read an applicant (test runs, listed as 'New application').
+    Runs still in progress are kept – they get the applicant's name once the case file is built."""
+    return c['status'] in ('running', 'new', 'waiting') or bool(c['applicant_name'])
 
 
 def portal_view(n8n, agent: str, limit: int = 25) -> dict:
