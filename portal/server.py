@@ -14,6 +14,7 @@ from .view import decision_of, portal_view
 
 HERE = Path(__file__).parent
 N8N = N8nBackend(settings)
+SHOWN = 3   # applications listed in each agent portal
 app = FastAPI(title='Zero Gap Agent – Portal')
 
 
@@ -74,6 +75,7 @@ def api_config():
 def api_portal(agent: str):
     try:
         view = portal_view(N8N, agent)
+        view['cases'] = sorted(view['cases'], key=lambda c: str(c.get('started_at') or ''), reverse=True)[:SHOWN]   # only the newest few
     except Exception as e:  # noqa: BLE001
         view = {'generated_at': _now(), 'cases': [], 'error': str(e)}
     return JSONResponse(view, headers={'Cache-Control': 'no-store'})
