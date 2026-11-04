@@ -98,7 +98,6 @@
     <div class="hero-body">
       <div class="hk"><div class="n" id="kTotal">–</div><div class="l" data-i18n="home.kTotal">Applications checked</div></div>
       <div class="hk"><div class="n" id="kWait">–</div><div class="l" data-i18n="home.kWait">Waiting for your review</div></div>
-      <div class="hk"><div class="n" id="kEsc">–</div><div class="l" data-i18n="home.kEsc">Escalated to Case Manager</div></div>
     </div>
   </div>
 </header>
@@ -112,8 +111,6 @@
       <div class="stats">
         <div class="st"><div class="n" data-a="aris" data-k="total">–</div><div class="l" data-i18n="home.checked">Checked</div></div>
         <div class="st hl"><div class="n" data-a="aris" data-k="waiting">–</div><div class="l" data-i18n="home.inReview">In review</div></div>
-        <div class="st"><div class="n" data-a="aris" data-k="escalation">–</div><div class="l" data-i18n="home.escalations">Escalations</div></div>
-        <div class="st"><div class="n" data-a="aris" data-k="risks">–</div><div class="l" data-i18n="home.risks">Risks hit</div></div>
       </div>
       <div class="go"><a class="btn" href="/portal/aris"><b data-i18n="home.open" style="font-weight:inherit">Open portal</b> <span>→</span></a><small id="arisNote"></small></div>
     </article>
@@ -124,8 +121,6 @@
       <div class="stats">
         <div class="st"><div class="n" data-a="zero" data-k="total">–</div><div class="l" data-i18n="home.checked">Checked</div></div>
         <div class="st hl"><div class="n" data-a="zero" data-k="waiting">–</div><div class="l" data-i18n="home.inReview">In review</div></div>
-        <div class="st"><div class="n" data-a="zero" data-k="wrong_person">–</div><div class="l" data-i18n="home.wrongPerson">Wrong person</div></div>
-        <div class="st"><div class="n" data-a="zero" data-k="risks">–</div><div class="l" data-i18n="home.risks">Risks hit</div></div>
       </div>
       <div class="go"><a class="btn" href="/portal/zero"><b data-i18n="home.open" style="font-weight:inherit">Open portal</b> <span>→</span></a><small id="zeroNote"></small></div>
     </article>
@@ -194,7 +189,6 @@
       const d = await (await fetch('/api/summary', { cache: 'no-store' })).json();
       const A = d.agents.aris, Z = d.agents.zero;
       count($('#kTotal'), A.total + Z.total); count($('#kWait'), A.waiting + Z.waiting);
-      count($('#kEsc'), A.escalation);
       document.querySelectorAll('[data-a]').forEach(el => count(el, (d.agents[el.dataset.a] || {})[el.dataset.k] || 0));
       $('#arisNote').textContent = A.error_text ? '⚠ ' + A.error_text : t('home.note', {a: A.approved, r: A.rejected});
       $('#zeroNote').textContent = Z.error_text ? '⚠ ' + Z.error_text : t('home.note', {a: Z.approved, r: Z.rejected});

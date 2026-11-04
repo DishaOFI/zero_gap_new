@@ -133,7 +133,7 @@
     'r.memberCase':       ['Member number · case', 'Versichertennummer · Fall'],
     'r.representative':   ['Representative', 'Vertreter/in'],
     'r.whyEscalate':      ['Why escalate', 'Grund der Eskalation'],
-    'r.amendments':       ['Policy amendments in ARIS', 'Richtlinienänderungen in ARIS'],
+    'r.amendments':       ['Policy amendments', 'Richtlinienänderungen'],
     'r.notApplied':       ['(not applied automatically – check manually)', '(nicht automatisch angewendet – bitte manuell prüfen)'],
     'r.unknownAmendment': ['Policy amendment {p} is published in ARIS, but the agent does not apply it yet – please check it manually.',
                            'Die Richtlinienänderung {p} ist in ARIS veröffentlicht, wird vom Agenten aber noch nicht angewendet – bitte manuell prüfen.'],
