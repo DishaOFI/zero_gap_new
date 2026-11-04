@@ -272,7 +272,7 @@
       const applied = new Set((r.policy?.amendments || []).map(a => a.id));
       const amendIds = [...new Set([...(r.policy?.found || []), ...applied])].sort();
       const unknown = amendIds.filter(id => !applied.has(id));
-      const amendRow = amendIds.length ? `<tr><td>${t('r.amendments')}</td><td>${amendIds.map(id => esc(id) + (applied.has(id) ? '' : ' ' + t('r.notApplied'))).join(', ')}</td></tr>` : AGENT === 'zero' ? `<tr><td>${t('r.amendments')}</td><td>–</td></tr>` : '';
+      const amendRow = amendIds.length ? `<tr><td>${t('r.amendments')}</td><td>${amendIds.map(id => esc(id) + (applied.has(id) ? '' : ' ' + t('r.notApplied'))).join(', ')}</td></tr>` : '';
       const rows = (de, en) => DE && de ? de.filter(([k]) => !AMEND_ROW.test(k)).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')
         : (en || []).filter(([k]) => !AMEND_ROW.test(k)).map(([k, v]) => `<tr><td>${esc(I18N.field(k))}</td><td>${tx(v)}</td></tr>`).join('');
       const details = r.facts ? `<div class="sub">${t('r.details')}</div><table class="kv">${rows(G.facts, r.facts)}${amendRow}</table>` : `<table class="kv">
