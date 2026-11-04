@@ -138,7 +138,7 @@
     'r.unknownAmendment': ['Policy amendment {p} is published in ARIS, but the agent does not apply it yet – please check it manually.',
                            'Die Richtlinienänderung {p} ist in ARIS veröffentlicht, wird vom Agenten aber noch nicht angewendet – bitte manuell prüfen.'],
     'r.outstanding':      ['Outstanding items', 'Offene Punkte'],
-    'r.missingTag':       ['Missing', 'Fehlt'],
+    'r.missingTag':       ['Missing', 'Fehlend'],
     'r.toCheck':          ['Points to check', 'Zu prüfen'],
     'r.checkTag':         ['Check', 'Prüfen'],
     'r.suggested':        ['Suggested from the case history', 'Vorschläge aus der Fallhistorie'],
@@ -170,28 +170,26 @@
     'd.toastMail':        ['Approved – letter emailed to the applicant.', 'Freigegeben – Schreiben per E-Mail versendet.'],
     'd.failed':           ['Could not record the decision: {e}', 'Entscheidung konnte nicht erfasst werden: {e}'],
     // processing steps (keys from view.py)
-    'step.received':      ['Trigger received', 'Auslöser empfangen'],
-    'step.received.d':    ['New application received – starting the case review.', 'Neuer Antrag eingegangen – die Fallprüfung beginnt.'],
-    'step.docs':          ['Reading documents', 'Dokumente lesen'],
-    'step.docs.d':        ['Loading the case documents.', 'Die Falldokumente werden geladen.'],
-    'step.sops':          ['Reading SOPs', 'SOPs lesen'],
-    'step.sops.d':        ['Loading the SOPs and policies.', 'SOPs und Richtlinien werden geladen.'],
-    'step.casefile':      ['Building the case file', 'Fallakte erstellen'],
-    'step.casefile.d':    ['Reading applicant, representative and dates from the documents.', 'Antragsteller/in, Vertretung und Daten werden aus den Dokumenten gelesen.'],
+    'step.received':      ['New application received', 'Neuer Antrag eingegangen'],
+    'step.received.d':    ['Trigger received – starting the case review', 'Auslöser empfangen – Fallprüfung beginnt'],
+    'step.sops':          ['Reading business context', 'Geschäftskontext lesen'],
+    'step.sops.d':        ['Loading process model with SOPs, policies, etc.', 'Prozessmodell mit Arbeitsanweisungen, Richtlinien usw. lesen'],
+    'step.casefile':      ['Building the case file', 'Fall anlegen'],
+    'step.casefile.d':    ['Reading applicant, representative and dates from the documents', 'Antragsteller/in, Vertretung und Daten werden aus den Dokumenten gelesen'],
     'step.history':       ['Checking the case history', 'Fallhistorie prüfen'],
-    'step.history.d':     ['Looking up earlier cases of the applicant.', 'Frühere Fälle der antragstellenden Person werden gesucht.'],
-    'step.rules':         ['Applying the rules', 'Regeln anwenden'],
-    'step.rules.d':       ['Applying the SOP and policy rules to the case.', 'Die SOP- und Richtlinienregeln werden auf den Fall angewendet.'],
-    'step.check':         ['Completeness check', 'Vollständigkeitsprüfung'],
-    'step.check.d':       ['Checking the application and the deadlines.', 'Antrag und Fristen werden geprüft.'],
-    'step.prepare':       ['Drafting the outreach', 'Kontaktaufnahme entwerfen'],
-    'step.prepare.d':     ['Drafting the letter or the escalation.', 'Das Schreiben oder die Eskalation wird entworfen.'],
+    'step.history.d':     ['Looking up earlier cases of the applicant', 'Frühere Fälle der pflegebedürftigen Person werden gesucht'],
+    'step.rules':         ['Applying business context rules', 'Regeln anhand Geschäftskontext anwenden'],
+    'step.rules.d':       ['Search for relevant information in surrounding systems', 'Relevante Informationen aus Umsystemen werden gesucht'],
+    'step.check':         ['Completeness check', 'Vollständigkeitsprüfung durchführen'],
+    'step.check.d':       ['Check the completeness of relevant informations', 'Vollständigkeit der relevanten Informationen wird geprüft'],
+    'step.prepare':       ['Drafting outreach', 'Schreiben entwerfen'],
+    'step.prepare.d':     ['Drafting missing information letter and escalation', 'Schreiben für fehlende Informationen und Eskalation wird entworfen'],
     'step.review':        ['Caseworker review', 'Prüfung durch Sachbearbeitung'],
-    'step.review.d':      ['Waiting for the caseworker to approve or reject.', 'Wartet auf Freigabe oder Ablehnung durch die Sachbearbeitung.'],
+    'step.review.d':      ['Waiting for the caseworker to approve or reject', 'Wartet auf Freigabe oder Ablehnung durch die Sachbearbeitung'],
     'step.decision':      ['Decision recorded', 'Entscheidung erfasst'],
-    'step.decision.d':    ['The caseworker’s decision is stored with the case.', 'Die Entscheidung der Sachbearbeitung wird beim Fall gespeichert.'],
-    'step.dispatch':      ['Dispatch', 'Versand'],
-    'step.dispatch.d':    ['Letter emailed or printed, or escalation sent to the Case Manager.', 'Schreiben per E-Mail versendet oder gedruckt, oder Eskalation an den Fallmanager gesendet.'],
+    'step.decision.d':    ['Caseworker’s decision is stored with the case', 'Die Entscheidung der Sachbearbeitung wird beim Fall gespeichert'],
+    'step.dispatch':      ['Dispatch', 'Schreiben wird versendet'],
+    'step.dispatch.d':    ['Letter emailed or printed, or escalation sent to Caseworker', 'Schreiben wird per E-Mail oder Post versendet, oder Eskalation an die Sachbearbeitung ausgelöst'],
   };
 
   const t = (key, vars) => {
@@ -246,6 +244,7 @@
     'Full name of the applicant is missing.': 'Der vollständige Name der antragstellenden Person fehlt.',
     'Insurance / member number is missing.': 'Die Versichertennummer fehlt.',
     'GP (Hausarzt) name and address missing.': 'Name und Anschrift des Hausarztes fehlen.',
+    'General practitioner name and address missing.': 'Name und Anschrift des Hausarztes fehlen.',
     'No benefit type selected. The MD assessment can still be commissioned, but a benefit type is required before a decision can be issued.':
       'Keine Leistungsart gewählt. Der Medizinische Dienst kann bereits beauftragt werden, vor der Entscheidung muss aber eine Leistungsart vorliegen.',
     'No type of benefit selected – required before the decision can be issued (the Medical Service can still be commissioned).':
@@ -277,6 +276,7 @@
     [/^Level (\d+) – (Team Lead|Case Manager)$/, (m, n, o) => `Stufe ${n} – ${o === 'Team Lead' ? 'Teamleitung' : 'Fallmanager'}`],
     [/^Identity proof of authorized representative (.+?) is missing – Vollmacht \(power of attorney\): identity check covers the applicant only\.$/,
       (m, n) => `Identitätsnachweis der bevollmächtigten Person ${n} fehlt – Vollmacht: Die Identitätsprüfung umfasst nur die antragstellende Person.`],
+    [/^Power of Attorney document for the authorized representative (.+)$/, (m, n) => `Vollmachtsdokument für den Bevollmächtigten ${n}`],
     [/^Identity proof of authorized representative (.+?) is missing\.$/, (m, n) => `Identitätsnachweis der bevollmächtigten Person ${n} fehlt.`],
     [/^Check earlier ARIS case (\S+) – (the benefit type|the general practitioner|the representative identity proof) may already be on file there \(suggestion only\)\.$/,
       (m, c, w) => `Früheren ARIS-Fall ${c} prüfen – ${SUGGEST[w]} dort eventuell bereits vor (nur Vorschlag).`],
@@ -288,10 +288,11 @@
       (m, a) => `Keine E-Mail-Adresse hinterlegt – nach der Freigabe wird das Schreiben gedruckt und per Post an ${a} geschickt.`],
   ];
   // "(per Operating Procedure §3 (Applicant Data))" / "(per PA-2026-02)" at the end of a sentence
-  const PER = /\s*\(per (?:Operating Procedure (§\d+) \(([^)]+)\)|([^()]+))\)(\.?)$/;
+  const PER = /\s*\((?:as )?per (?:Operating Procedure (§\d+) \(([^)]+)\)|([^()]+))\)(\.?)$/;
   const perDe = (m, sec, name, other, dot) => ` (gemäß ${sec ? `Verfahrensanweisung ${sec} (${SECTION[name] || name})` : other})${dot}`;
 
   function tx(text) {
+    if (lang !== 'de' && String(text).trim() === 'Pflegegeld') return 'Care allowance';
     if (lang !== 'de' || text == null || text === '') return text;
     let s = String(text).trim(), tail = '';
     const per = s.match(PER);

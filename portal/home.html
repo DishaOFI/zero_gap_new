@@ -99,7 +99,6 @@
       <div class="hk"><div class="n" id="kTotal">–</div><div class="l" data-i18n="home.kTotal">Applications checked</div></div>
       <div class="hk"><div class="n" id="kWait">–</div><div class="l" data-i18n="home.kWait">Waiting for your review</div></div>
       <div class="hk"><div class="n" id="kEsc">–</div><div class="l" data-i18n="home.kEsc">Escalated to Case Manager</div></div>
-      <div class="hk"><div class="n" id="kWrong">–</div><div class="l" data-i18n="home.kWrong">Wrong-person matches (no context)</div></div>
     </div>
   </div>
 </header>
@@ -195,7 +194,7 @@
       const d = await (await fetch('/api/summary', { cache: 'no-store' })).json();
       const A = d.agents.aris, Z = d.agents.zero;
       count($('#kTotal'), A.total + Z.total); count($('#kWait'), A.waiting + Z.waiting);
-      count($('#kEsc'), A.escalation); count($('#kWrong'), Z.wrong_person);
+      count($('#kEsc'), A.escalation);
       document.querySelectorAll('[data-a]').forEach(el => count(el, (d.agents[el.dataset.a] || {})[el.dataset.k] || 0));
       $('#arisNote').textContent = A.error_text ? '⚠ ' + A.error_text : t('home.note', {a: A.approved, r: A.rejected});
       $('#zeroNote').textContent = Z.error_text ? '⚠ ' + Z.error_text : t('home.note', {a: Z.approved, r: Z.rejected});

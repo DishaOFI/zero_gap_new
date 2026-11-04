@@ -22,8 +22,6 @@ CATALOGUE = {
     'W9': ['Writing', 'Creates information that appears to have been provided by the customer', 'False customer record; misleading claims documentation'],
     'W10': ['Writing', 'Cannot distinguish source data, inferred data and AI-generated data', 'Lack of provenance, explainability and auditability'],
 }
-DOCS_ARIS = ['Build Case Document Searches', 'Search Case Documents', 'Collect Case Document IDs', 'MCP: Get Case Document Text', 'Read Case Document Text']
-DOCS_DRIVE = ['List Folder Files', 'Pick Files to Convert', 'Anything to Convert?', 'One Item per File', 'Make Google Copy (converted in Drive)', 'List Case Documents', 'Keep Case Documents Only', 'Get Case Document (Google Docs)', 'Convert to Google Docs & Sheets', 'Read Case Document Text']
 SOP_ARIS = ['Build SOP Searches', 'Search SOPs and Amendments', 'Collect SOP Document IDs', 'MCP: Get SOP Text', 'Read SOP Text']
 SOP_DRIVE = ['List SOP Documents', 'Keep SOP Documents Only', 'Get SOP Document (Google Docs)', 'Read SOP Text']
 DRAFT = ['AI: Draft Review Summary & Letter', 'Guardrails: Validate AI Draft', 'Create Letter PDF']
@@ -44,6 +42,24 @@ def decision_of(wait: dict | None, ran) -> str | None:
     if d.startswith('reject'):
         return 'rejected'
     return 'approved' if DECISION[0] in ran else 'rejected' if DECISION[1] in ran else None
+
+
+def _wording(text, de=False):
+    """Current wording of the two 'missing' findings the flows still write in their old words."""
+    if not text:
+        return text
+    if de:
+        text = re.sub(r'^Identitätsnachweis der bevollmächtigten Person (.+?) fehlt\.?(?: – [^(]*?)?\s*(\(gemäß [^)]+\))?\.?$',
+                      lambda m: f"Vollmachtsdokument für den Bevollmächtigten {m[1]}" + (f" {m[2]}" if m[2] else '') + '.', text)
+        return re.sub(r'^Name und Anschrift der Hausärztin bzw\. des Hausarztes fehlen', 'Name und Anschrift des Hausarztes fehlen', text)
+    text = re.sub(r'^Identity proof of authorized representative (.+?) is missing\.?(?: – [^(]*?)?\s*(?:\(per ([^)]+)\))?\.?$',
+                  lambda m: f"Power of Attorney document for the authorized representative {m[1]}" + (f" (as per {m[2]})" if m[2] else ''), text)
+    return re.sub(r'^GP \(Hausarzt\) name and address missing\.?\s*(?:\(per ([^)]+)\))?', lambda m: 'General practitioner name and address missing.' + (f" (as per {m[1]})" if m[1] else ''), text)
+
+
+def _suggestions(r):
+    """Suggestions from the case history, without the one about the representative's identity proof (no longer offered)."""
+    return [x for x in r.get('suggestions') or [] if 'representative identity proof' not in str(x.get('text') or '')]
 
 
 def _contact(r: dict, d: dict) -> dict:
@@ -73,7 +89,6 @@ def _case(run: dict, steps: list[dict]) -> dict:
     draft = ['Write Case Record (CRM)', 'AI: Draft Letter', 'Prepare Letter & Review Email', 'Create Letter PDF'] if zero else DRAFT
     stages = [
         ('received', 'Trigger received', 'New application received – starting the case review.', ['Gmail Trigger', 'Gmail Trigger1', 'Extract Application PDF'], ['Gmail Trigger', 'Gmail Trigger1', 'Extract Application PDF']),
-        ('docs', 'Reading documents', 'Loading the case documents.', DOCS_DRIVE if zero else DOCS_ARIS, ['Read Case Document Text']),
         ('sops', 'Reading SOPs', 'Loading the SOPs and policies.', SOP_DRIVE if zero else SOP_ARIS, ['Read SOP Text']),
         ('casefile', 'Building the case file', 'Reading applicant, representative and dates from the documents.', ['Build Case File'], ['Build Case File']),
         ('history', 'Checking the case history', 'Looking up earlier cases of the applicant.', hist, [hist[-1]]),
@@ -113,7 +128,7 @@ def _case(run: dict, steps: list[dict]) -> dict:
             'sla': {'statutory_left': s.get('days_to_sla_breach'), 'deadline': s.get('sla_deadline_date'), 'internal': s.get('internal_target'),
                     'start': s.get('sla_start_date'), 'basis': s.get('sla_start_source')},
             'escalation': (r.get('policy') or {}).get('escalation'),
-            'blocking': [f.get('message') for f in r.get('hard_failures') or []], 'checks': [f.get('message') for f in r.get('soft_warnings') or []],
+            'blocking': [_wording(f.get('message')) for f in r.get('hard_failures') or []], 'checks': [_wording(f.get('message')) for f in r.get('soft_warnings') or []],
             'notes': [f.get('message') for f in r.get('info') or []],
             'policy': {'source': 'SOPs' if zero else 'SOPs and policy amendments', 'documents': [d.get('title') for d in (r.get('policy') or {}).get('documents') or []],
                        'amendments': (r.get('policy') or {}).get('amendments') or [],
@@ -122,7 +137,7 @@ def _case(run: dict, steps: list[dict]) -> dict:
                        'found': sorted({str(d.get('title')) for d in (r.get('policy') or {}).get('documents') or []
                                         if re.fullmatch(r'PA-\d{4}-\d{2}', str(d.get('title') or ''))})},
             'policy_view': r.get('policy_view') or [],
-            'suggestions': [] if zero else [x.get('text') for x in r.get('suggestions') or []],
+            'suggestions': [] if zero else [x.get('text') for x in _suggestions(r)],
             'provenance': r.get('provenance') or [],
             'risks': [{**x, 'group': CATALOGUE.get(x.get('id'), [None])[0], 'title': CATALOGUE.get(x.get('id'), [None, None])[1],
                        'issue': CATALOGUE.get(x.get('id'), [None, None, None])[2]} for x in (r.get('risk_register') or {}).get('risks') or []],
@@ -139,9 +154,9 @@ def _case(run: dict, steps: list[dict]) -> dict:
                 'letter': drafts.get('escalation_summary_de') if r.get('route') == 'escalation' else drafts.get('outreach_letter_de'),
                 'facts': (dn or {}).get('review_facts_de'),
                 'extra_facts': r.get('extra_facts_de'),
-                'blocking': [f.get('message_de') for f in r.get('hard_failures') or []],
-                'checks': [f.get('message_de') for f in r.get('soft_warnings') or []],
-                'suggestions': [] if zero else [x.get('text_de') for x in r.get('suggestions') or []],
+                'blocking': [_wording(f.get('message_de'), True) for f in r.get('hard_failures') or []],
+                'checks': [_wording(f.get('message_de'), True) for f in r.get('soft_warnings') or []],
+                'suggestions': [] if zero else [x.get('text_de') for x in _suggestions(r)],
                 'route_reasons': r.get('route_reasons_de') or [],
             },
             'contact': _contact(r, (pd or {}).get('dispatch') or r.get('dispatch') or {}),
