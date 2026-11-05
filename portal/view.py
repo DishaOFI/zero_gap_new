@@ -57,6 +57,17 @@ def _wording(text, de=False):
     return re.sub(r'^GP \(Hausarzt\) name and address missing\.?\s*(?:\(per ([^)]+)\))?', lambda m: 'General practitioner name and address missing.' + (f" (as per {m[1]})" if m[1] else ''), text)
 
 
+def _letter(text, de=False):
+    """Letter as shown in the portal: the representative item asks for the power of attorney, not an identity document."""
+    if not text:
+        return text
+    if de:
+        return re.sub(r'(?i)einen Nachweis Ihrer Identität als bevollmächtigte Person \(Kopie Ihres Ausweisdokuments\)\.?',
+                      'Einen Nachweis Ihrer Bevollmächtigung (Kopie der Vollmacht).', text)
+    return re.sub(r'(?i)proof of your identity as authori[sz]ed representative \(a copy of your identity document\)\.?',
+                  'Proof of your authorisation (a copy of the power of attorney).', text)
+
+
 def _suggestions(r):
     """Suggestions from the case history, without the one about the representative's identity proof (no longer offered)."""
     return [x for x in r.get('suggestions') or [] if 'representative identity proof' not in str(x.get('text') or '')]
@@ -143,7 +154,7 @@ def _case(run: dict, steps: list[dict]) -> dict:
                        'issue': CATALOGUE.get(x.get('id'), [None, None, None])[2]} for x in (r.get('risk_register') or {}).get('risks') or []],
             'record_write': ((r.get('zero_context') or {}).get('record_write')) if zero else None,
             'timeline': sorted([{'date': tl[k], 'label': lab} for k, lab in TL if tl.get(k)], key=lambda x: x['date']),
-            'letter': drafts.get('escalation_summary') if r.get('route') == 'escalation' else drafts.get('outreach_letter'),
+            'letter': _letter(drafts.get('escalation_summary') if r.get('route') == 'escalation' else drafts.get('outreach_letter')),
             'addressee': drafts.get('addressee') or (r.get('review_context') or {}).get('addressee'),
             'summary': drafts.get('escalation_summary') if (not zero and drafts.get('draft_source') == 'llm') else None,
             'dispatch': (pd or {}).get('dispatch') or r.get('dispatch'),
@@ -151,7 +162,7 @@ def _case(run: dict, steps: list[dict]) -> dict:
             'facts': (dn or {}).get('review_facts'),
             # German versions written by the flows (missing in runs from before they became bilingual)
             'de': {
-                'letter': drafts.get('escalation_summary_de') if r.get('route') == 'escalation' else drafts.get('outreach_letter_de'),
+                'letter': _letter(drafts.get('escalation_summary_de') if r.get('route') == 'escalation' else drafts.get('outreach_letter_de'), True),
                 'facts': (dn or {}).get('review_facts_de'),
                 'extra_facts': r.get('extra_facts_de'),
                 'blocking': [_wording(f.get('message_de'), True) for f in r.get('hard_failures') or []],
