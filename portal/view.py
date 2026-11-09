@@ -1,6 +1,7 @@
 """Turns n8n executions of the two Zero Gap Agent flows into the progress + review data the portal shows."""
 from __future__ import annotations
-import re
+import json, re, threading
+from pathlib import Path
 
 CATALOGUE = {
     'C1': ['Collection', 'Context from previous cases involving the wrong person', 'Privacy breach, disclosure of personal data, incorrect case association'],
@@ -190,8 +191,38 @@ def _shown(c: dict) -> bool:
     return c['status'] in ('running', 'new', 'waiting') or bool(c['applicant_name'])
 
 
+# n8n deletes old executions, so the portal remembers the cases it has shown: the latest ones stay visible after n8n dropped them
+# (a file next to the app – it survives restarts, but not a new deploy on hosts with a temporary disk)
+REMEMBER = 25
+_MEMORY_FILE = Path(__file__).resolve().parent.parent / '.case_memory.json'
+_memory: dict | None = None
+_memory_lock = threading.Lock()
+
+
+def _remember(agent: str, fresh: list[dict]) -> list[dict]:
+    global _memory
+    with _memory_lock:
+        if _memory is None:
+            try:
+                _memory = json.loads(_MEMORY_FILE.read_text(encoding='utf-8'))
+            except (OSError, ValueError):
+                _memory = {}
+        before = json.dumps(_memory.get(agent), sort_keys=True)
+        fresh_ids = {c['id'] for c in fresh}
+        # a remembered run that was still in progress and is gone from n8n is not coming back
+        old = [c for c in _memory.get(agent, []) if c['id'] not in fresh_ids and c['status'] not in ('running', 'new')]
+        merged = sorted(fresh + old, key=lambda c: str(c.get('started_at') or ''), reverse=True)[:REMEMBER]
+        _memory[agent] = merged
+        if json.dumps(merged, sort_keys=True) != before:
+            try:
+                _MEMORY_FILE.write_text(json.dumps(_memory, ensure_ascii=False), encoding='utf-8')
+            except OSError:
+                pass   # read-only disk: the memory then lasts until the next restart
+        return merged
+
+
 def portal_view(n8n, agent: str, limit: int = 25) -> dict:
     import time
-    cases = [c for c in (_case(run, steps) for run, steps in n8n.runs(agent, limit)) if _shown(c)]
+    cases = _remember(agent, [c for c in (_case(run, steps) for run, steps in n8n.runs(agent, limit)) if _shown(c)])
     return {'generated_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
             'flow_label': 'agent without ARIS context' if agent == 'zero' else 'agent with ARIS context', 'cases': cases}
