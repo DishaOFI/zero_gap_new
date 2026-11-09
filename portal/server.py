@@ -1,7 +1,7 @@
 """Caseworker portal: home page, one portal per agent, Approve / Reject, printable letter, CSV exports.
 All data comes from the n8n API – nothing is stored here."""
 from __future__ import annotations
-import csv, datetime as dt, html, io, time, traceback
+import csv, datetime as dt, html, io, threading, time, traceback
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -16,6 +16,18 @@ HERE = Path(__file__).parent
 N8N = N8nBackend(settings)
 SHOWN = 3   # applications listed in each agent portal
 app = FastAPI(title='Zero Gap Agent – Portal')
+
+
+@app.on_event('startup')
+def _warm_up():
+    """The first look at n8n takes a while: do it now so the first visitor does not wait for it."""
+    def run():
+        for agent in ('aris', 'zero'):
+            try:
+                portal_view(N8N, agent)
+            except Exception:  # noqa: BLE001
+                traceback.print_exc()
+    threading.Thread(target=run, daemon=True).start()
 
 
 def _now() -> str:

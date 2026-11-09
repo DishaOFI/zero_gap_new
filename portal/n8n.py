@@ -13,6 +13,7 @@ MAX_KEPT = 300   # trimmed executions kept in memory
 GONE: dict = {}  # marker: no execution with this id
 LOOKAHEAD = 60         # ids probed above the newest known execution – runs the instance does not keep use up ids too
 FIRST_LOOKAHEAD = 300  # the same on the first scan after the portal (re)starts
+GAP_WINDOW = 400       # ids below the newest known execution checked for hidden runs (older waiting runs come from the 'waiting' list)
 MISS_TTL = 30          # seconds a not-yet-existing id above the newest known execution is not asked again
 NEAR = 16              # ids right above the newest known execution, asked again on every refresh (a new run shows up at once)
 MAX_GAP = 2000        # how far above the newest known execution the search may go (a little further each refresh)
@@ -119,7 +120,7 @@ class N8nBackend:
                 out.setdefault(ours[e['workflowId']], []).append(e)
             return newest
 
-        scan(sorted({i for i in range(low, top) if i not in listed} | (self._ours - listed)))
+        scan(sorted({i for i in range(max(low, top - GAP_WINDOW), top) if i not in listed} | (self._ours - listed)))
         for _ in range(10):   # above the newest known execution, further up while executions turn up
             start = self._frontier
             for i in range(start + 1, start + NEAR + 1):   # the next run is most likely here: asked on every refresh
