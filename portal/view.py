@@ -58,15 +58,33 @@ def _wording(text, de=False):
     return re.sub(r'^GP \(Hausarzt\) name and address missing\.?\s*(?:\(per ([^)]+)\))?', lambda m: 'General practitioner name and address missing.' + (f" (as per {m[1]})" if m[1] else ''), text)
 
 
-def _letter(text, de=False):
-    """Letter as shown in the portal: the representative item asks for the power of attorney, not an identity document."""
+def _letter(text, de=False, route=None, who=None):
+    """Outreach letter as shown in the portal, one format for both agents: the requested items, numbered, in a short letter.
+    (Display only – what is actually sent is written by the n8n flow.)"""
     if not text:
         return text
     if de:
-        return re.sub(r'(?i)einen Nachweis Ihrer Identität als bevollmächtigte Person \(Kopie Ihres Ausweisdokuments\)\.?',
+        text = re.sub(r'(?i)einen Nachweis Ihrer Identität als bevollmächtigte Person \(Kopie Ihres Ausweisdokuments\)\.?',
                       'Einen Nachweis Ihrer Bevollmächtigung (Kopie der Vollmacht).', text)
-    return re.sub(r'(?i)proof of your identity as authori[sz]ed representative \(a copy of your identity document\)\.?',
-                  'Proof of your authorisation (a copy of the power of attorney).', text)
+    else:
+        text = re.sub(r'(?i)proof of your identity as authori[sz]ed representative \(a copy of your identity document\)\.?',
+                      'Proof of your authorisation (a copy of the power of attorney).', text)
+    items = re.findall(r'(?m)^[ \t]*\d+\.[ \t]*(\S.*?)[ \t]*$', text)
+    if route == 'escalation' or not items:
+        return text
+    items = [re.sub(r'\s*\((?:Hausarzt|Entlassungsbericht)\)', '', i).rstrip('.;, ') for i in items]
+    items = [f"{n}. {i[:1].upper()}{i[1:]}." for n, i in enumerate(items, 1)]
+    hello = re.search(r'(?m)^[ \t]*(?:Dear|Sehr geehrte[r]?|Guten Tag)\s+(.+?),[ \t]*$', text)
+    to = hello.group(1) if hello else who
+    me = bool(who) and to == who   # the letter goes to the applicant themselves
+    body = '\n'.join(items)
+    if de:
+        about = 'Ihrem Antrag auf Leistungen der Pflegeversicherung' if me else f"dem Antrag auf Leistungen der Pflegeversicherung von {who}"
+        return (f"Guten Tag {to},\n\nwir schreiben Ihnen zu {about}. Um den Antrag bearbeiten zu können, bitten wir Sie um folgende Unterlagen und Angaben:"
+                f"\n\n{body}\n\nVielen Dank für Ihre Mitwirkung.\n\nMit freundlichen Grüßen\nIhre Pflegekasse")
+    about = 'your long-term care application' if me else f"the long-term care application of {who}"
+    return (f"Dear {to},\n\nWe are writing to you regarding {about}. To proceed with the application, we kindly request the following items:"
+            f"\n\n{body}\n\nThank you for your cooperation.\n\nSincerely,\nCare Insurance Fund")
 
 
 def _suggestions(r):
@@ -128,6 +146,7 @@ def _case(run: dict, steps: list[dict]) -> dict:
     drafts = (dn or {}).get('drafts') or {}
     a = (r or {}).get('applicant') or (cf or {}).get('applicant') or {}
     tl = (r or {}).get('timeline') or (cf or {}).get('timeline') or {}
+    who = ' '.join(x for x in [a.get('first_name'), a.get('last_name')] if x) or run.get('applicant_name')
     review = None
     if r and r.get('final_status'):
         s = r.get('sla') or {}
@@ -155,7 +174,7 @@ def _case(run: dict, steps: list[dict]) -> dict:
                        'issue': CATALOGUE.get(x.get('id'), [None, None, None])[2]} for x in (r.get('risk_register') or {}).get('risks') or []],
             'record_write': ((r.get('zero_context') or {}).get('record_write')) if zero else None,
             'timeline': sorted([{'date': tl[k], 'label': lab} for k, lab in TL if tl.get(k)], key=lambda x: x['date']),
-            'letter': _letter(drafts.get('escalation_summary') if r.get('route') == 'escalation' else drafts.get('outreach_letter')),
+            'letter': _letter(drafts.get('escalation_summary') if r.get('route') == 'escalation' else drafts.get('outreach_letter'), route=r.get('route'), who=who),
             'addressee': drafts.get('addressee') or (r.get('review_context') or {}).get('addressee'),
             'summary': drafts.get('escalation_summary') if (not zero and drafts.get('draft_source') == 'llm') else None,
             'dispatch': (pd or {}).get('dispatch') or r.get('dispatch'),
@@ -163,7 +182,7 @@ def _case(run: dict, steps: list[dict]) -> dict:
             'facts': (dn or {}).get('review_facts'),
             # German versions written by the flows (missing in runs from before they became bilingual)
             'de': {
-                'letter': _letter(drafts.get('escalation_summary_de') if r.get('route') == 'escalation' else drafts.get('outreach_letter_de'), True),
+                'letter': _letter(drafts.get('escalation_summary_de') if r.get('route') == 'escalation' else drafts.get('outreach_letter_de'), True, r.get('route'), who),
                 'facts': (dn or {}).get('review_facts_de'),
                 'extra_facts': r.get('extra_facts_de'),
                 'blocking': [_wording(f.get('message_de'), True) for f in r.get('hard_failures') or []],

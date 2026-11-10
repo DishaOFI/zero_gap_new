@@ -147,7 +147,7 @@
     'r.draftTo':          ['Draft letter to {n}', 'Entwurf des Schreibens an {n}'],
     'r.sentDe':           ['', 'Diese deutsche Fassung wird nach Ihrer Freigabe versendet. Eine englische Referenzfassung sehen Sie unter EN.'],
     'r.refCopy':          ['English reference copy only – after your approval the German version is sent (switch to DE to read it).', ''],
-    'r.refSuffix':        [' – English reference copy', ''],
+    'r.refSuffix':        ['', ''],
     'r.onlyEn':           ['', 'Vorgang aus der Zeit vor der Umstellung: Das Schreiben liegt nur auf Englisch vor und wird so versendet.'],
     // decision
     'd.recorded':         ['Decision recorded:', 'Entscheidung erfasst:'],
@@ -292,7 +292,9 @@
   const perDe = (m, sec, name, other, dot) => ` (gemäß ${sec ? `Verfahrensanweisung ${sec} (${SECTION[name] || name})` : other})${dot}`;
 
   function tx(text) {
-    if (lang !== 'de' && String(text).trim() === 'Pflegegeld') return 'Care allowance';
+    if (lang !== 'de' && typeof text === 'string') {   // English wording touch-ups on what the flows write
+      return text.trim() === 'Pflegegeld' ? 'Care allowance' : text.replace(/^Pflegegrad (\d)$/, 'Care Level $1').replace(/ \((?:Entlassungsbericht|Hausarzt)\)/g, '');
+    }
     if (lang !== 'de' || text == null || text === '') return text;
     let s = String(text).trim(), tail = '';
     const per = s.match(PER);
@@ -302,7 +304,7 @@
     if (out == null) out = s;
     return dates(out + tail);
   }
-  const field = k => (lang === 'de' && FIELD[k]) || k;
+  const field = k => lang === 'de' ? FIELD[k] || k : k === 'GP (Hausarzt)' ? 'GP' : k;
 
   function apply(root = document) {
     document.documentElement.lang = lang;
