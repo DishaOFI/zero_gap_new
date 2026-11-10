@@ -1,7 +1,10 @@
 """Turns n8n executions of the two Zero Gap Agent flows into the progress + review data the portal shows."""
 from __future__ import annotations
-import json, re, threading
+import json, re, threading, time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+
+from .n8n import GONE
 
 CATALOGUE = {
     'C1': ['Collection', 'Context from previous cases involving the wrong person', 'Privacy breach, disclosure of personal data, incorrect case association'],
@@ -210,15 +213,18 @@ def _shown(c: dict) -> bool:
     return c['status'] in ('running', 'new', 'waiting') or bool(c['applicant_name'])
 
 
-# n8n deletes old executions, so the portal remembers the cases it has shown: the latest ones stay visible after n8n dropped them
+# The portal remembers the cases it has shown, so the latest ones stay visible when n8n's list no longer returns them –
+# but a case that was DELETED in n8n (the execution no longer exists) is dropped from the memory too.
 # (a file next to the app – it survives restarts, but not a new deploy on hosts with a temporary disk)
 REMEMBER = 25
+RECHECK = 20   # seconds before a remembered case is looked up in n8n again
+_checked: dict[str, float] = {}   # execution id -> when n8n last confirmed it still exists
 _MEMORY_FILE = Path(__file__).resolve().parent.parent / '.case_memory.json'
 _memory: dict | None = None
 _memory_lock = threading.Lock()
 
 
-def _remember(agent: str, fresh: list[dict]) -> list[dict]:
+def _remember(agent: str, fresh: list[dict], probe) -> list[dict]:
     global _memory
     with _memory_lock:
         if _memory is None:
@@ -230,6 +236,14 @@ def _remember(agent: str, fresh: list[dict]) -> list[dict]:
         fresh_ids = {c['id'] for c in fresh}
         # a remembered run that was still in progress and is gone from n8n is not coming back
         old = [c for c in _memory.get(agent, []) if c['id'] not in fresh_ids and c['status'] not in ('running', 'new')]
+        now = time.time()
+        due = [c for c in old if now - _checked.get(c['id'], 0) > RECHECK]
+        if due:   # still in n8n? (404 = deleted there; n8n not answering = keep it for now)
+            with ThreadPoolExecutor(8) as pool:
+                found = list(pool.map(lambda c: probe(int(c['id'])), due))
+            gone = {c['id'] for c, e in zip(due, found) if e is GONE}
+            _checked.update({c['id']: now for c in due if c['id'] not in gone})
+            old = [c for c in old if c['id'] not in gone]
         merged = sorted(fresh + old, key=lambda c: str(c.get('started_at') or ''), reverse=True)[:REMEMBER]
         _memory[agent] = merged
         if json.dumps(merged, sort_keys=True) != before:
@@ -242,6 +256,6 @@ def _remember(agent: str, fresh: list[dict]) -> list[dict]:
 
 def portal_view(n8n, agent: str, limit: int = 25) -> dict:
     import time
-    cases = _remember(agent, [c for c in (_case(run, steps) for run, steps in n8n.runs(agent, limit)) if _shown(c)])
+    cases = _remember(agent, [c for c in (_case(run, steps) for run, steps in n8n.runs(agent, limit)) if _shown(c)], n8n._probe)
     return {'generated_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
             'flow_label': 'agent without ARIS context' if agent == 'zero' else 'agent with ARIS context', 'cases': cases}
