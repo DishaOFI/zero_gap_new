@@ -237,6 +237,7 @@
     'Bank details and last three bank statements – mandatory.': 'Bankverbindung und die letzten drei Kontoauszüge – verpflichtend.',
     'Care provider contract – mandatory.': 'Vertrag mit dem Pflegedienst – verpflichtend.',
     'Copy of the applicant’s identity card – mandatory.': 'Kopie des Personalausweises der antragstellenden Person – verpflichtend.',
+    'Proof of your authorisation – mandatory.': 'Nachweis Ihrer Bevollmächtigung – verpflichtend.',
     'Hospital discharge report (Entlassungsbericht) – mandatory.': 'Krankenhaus-Entlassungsbericht – verpflichtend.',
     'Medical reports and diagnosis from all treating doctors – mandatory.': 'Arztberichte und Diagnosen aller behandelnden Ärztinnen und Ärzte – verpflichtend.',
     'Current address is missing.': 'Die aktuelle Anschrift fehlt.',
@@ -291,9 +292,16 @@
   const PER = /\s*\((?:as )?per (?:Operating Procedure (§\d+) \(([^)]+)\)|([^()]+))\)(\.?)$/;
   const perDe = (m, sec, name, other, dot) => ` (gemäß ${sec ? `Verfahrensanweisung ${sec} (${SECTION[name] || name})` : other})${dot}`;
 
+  // benefit names as the application form lists them
+  const BENEFIT_EN = { 'Vollstationäre Pflege in Einrichtungen der Eingliederungshilfe': 'Full inpatient care in disability assistance facilities',
+    'Teilstationäre Pflege (Tages-/Nachtpflege)': 'Partial inpatient care (day/night care)', 'Vollstationäre Pflege': 'Full inpatient care',
+    'Kombinationsleistung': 'Combination benefit', 'Pflegesachleistung': 'Care allowance', 'Pflegegeld': 'Care allowance' };
+  const BENEFIT_RE = new RegExp(Object.keys(BENEFIT_EN).map(k => k.replace(/[()\/]/g, '\\$&')).join('|'), 'g');
+
   function tx(text) {
     if (lang !== 'de' && typeof text === 'string') {   // English wording touch-ups on what the flows write
-      return text.trim() === 'Pflegegeld' ? 'Care allowance' : text.replace(/^Pflegegrad (\d)$/, 'Care Level $1').replace(/ \((?:Entlassungsbericht|Hausarzt)\)/g, '');
+      return text.replace(/^Pflegegrad (\d)$/, 'Care Level $1').replace(/ \((?:Entlassungsbericht|Hausarzt)\)/g, '')
+        .replace(BENEFIT_RE, b => BENEFIT_EN[b]);
     }
     if (lang !== 'de' || text == null || text === '') return text;
     let s = String(text).trim(), tail = '';

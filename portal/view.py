@@ -53,9 +53,11 @@ def _wording(text, de=False):
     if not text:
         return text
     if de:
+        text = text.replace('Kopie des Personalausweises der antragstellenden Person', 'Nachweis Ihrer Bevollmächtigung')
         text = re.sub(r'^Identitätsnachweis der bevollmächtigten Person (.+?) fehlt\.?(?: – [^(]*?)?\s*(\(gemäß [^)]+\))?\.?$',
                       lambda m: f"Vollmachtsdokument für den Bevollmächtigten {m[1]}" + (f" {m[2]}" if m[2] else '') + '.', text)
         return re.sub(r'^Name und Anschrift der Hausärztin bzw\. des Hausarztes fehlen', 'Name und Anschrift des Hausarztes fehlen', text)
+    text = re.sub(r"Copy of the applicant['’]s identity card", 'Proof of your authorisation', text)
     text = re.sub(r'^Identity proof of authorized representative (.+?) is missing\.?(?: – [^(]*?)?\s*(?:\(per ([^)]+)\))?\.?$',
                   lambda m: f"Power of Attorney document for the authorized representative {m[1]}" + (f" (as per {m[2]})" if m[2] else ''), text)
     return re.sub(r'^GP \(Hausarzt\) name and address missing\.?\s*(?:\(per ([^)]+)\))?', lambda m: 'General practitioner name and address missing.' + (f" (as per {m[1]})" if m[1] else ''), text)
@@ -72,6 +74,10 @@ def _letter(text, de=False, route=None, who=None):
     else:
         text = re.sub(r'(?i)proof of your identity as authori[sz]ed representative \(a copy of your identity document\)\.?',
                       'Proof of your authorisation (a copy of the power of attorney).', text)
+    if de:
+        text = text.replace('Kopie des Personalausweises der antragstellenden Person', 'Nachweis Ihrer Bevollmächtigung')
+    else:
+        text = re.sub(r"(?i)copy of the applicant['’]s identity card", 'Proof of your authorisation', text)
     items = re.findall(r'(?m)^[ \t]*\d+\.[ \t]*(\S.*?)[ \t]*$', text)
     if route == 'escalation' or not items:
         return text
