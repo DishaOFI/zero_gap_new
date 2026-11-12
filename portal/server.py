@@ -83,11 +83,17 @@ def api_config():
     return {'backend': 'n8n', 'upload': False}
 
 
+def _newest(agent: str) -> dict:
+    """The view of one agent with only its newest SHOWN cases – the portal and the home page both use exactly this list."""
+    view = portal_view(N8N, agent)
+    view['cases'] = sorted(view['cases'], key=lambda c: str(c.get('started_at') or ''), reverse=True)[:SHOWN]
+    return view
+
+
 @app.get('/api/portal/{agent}')
 def api_portal(agent: str):
     try:
-        view = portal_view(N8N, agent)
-        view['cases'] = sorted(view['cases'], key=lambda c: str(c.get('started_at') or ''), reverse=True)[:SHOWN]   # only the newest few
+        view = _newest(agent)
     except Exception as e:  # noqa: BLE001
         view = {'generated_at': _now(), 'cases': [], 'error': str(e)}
     return JSONResponse(view, headers={'Cache-Control': 'no-store'})
@@ -108,7 +114,7 @@ def api_summary():
     agents, recent = {}, []
     for agent in ('aris', 'zero'):
         try:
-            cases, err = portal_view(N8N, agent, 50)['cases'], None
+            cases, err = _newest(agent)['cases'], None
         except Exception as e:  # noqa: BLE001
             cases, err = [], str(e)
         st = {'total': len(cases), 'running': 0, 'waiting': 0, 'approved': 0, 'rejected': 0, 'error': 0,
@@ -136,7 +142,7 @@ def api_summary():
         agents[agent] = st
     recent.sort(key=lambda x: str(x['started_at'] or ''), reverse=True)
     return JSONResponse({'generated_at': _now(), 'backend': 'n8n', 'n8n_url': settings.n8n_url, 'upload': False,
-                         'agents': agents, 'recent': recent[:10]}, headers={'Cache-Control': 'no-store'})
+                         'agents': agents, 'recent': recent}, headers={'Cache-Control': 'no-store'})
 
 
 # ------------------------------------------------------------------ exports for ARIS Process Mining
