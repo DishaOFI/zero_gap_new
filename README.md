@@ -23,8 +23,8 @@ If Approve / Reject in the portal shows an error, approve from the review e-mail
 One service runs everything: the Python server also serves the pages.
 1. Push this folder to a GitHub repo (`.env` is git-ignored – never commit it).
 2. Railway → **New Project → Deploy from GitHub repo** → pick the repo. `railway.json` sets the start command and health check.
-3. **Variables**: `N8N_URL`, `N8N_API_KEY`, `N8N_WORKFLOW_ARIS`, `N8N_WORKFLOW_ZERO`, and `PORTAL_USER` / `PORTAL_PASSWORD`
-   (browser login – strongly recommended, the portal shows applicant data).
+3. **Variables**: `N8N_URL`, `N8N_API_KEY`, `N8N_WORKFLOW_ARIS`, and `N8N_WORKFLOW_ZERO`.
+   **The portal has no login:** anyone with the link sees the cases and can approve or reject. Share the URL only with people you trust and use test data.
 4. **Volume**: add one mounted at `/data` and set `CASE_MEMORY_FILE=/data/.case_memory.json`, so the last cases survive a redeploy.
 5. **Settings → Networking → Generate Domain**, then open the URL.
 

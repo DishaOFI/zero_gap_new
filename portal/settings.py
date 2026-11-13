@@ -36,8 +36,6 @@ class Settings:
     n8n_workflow_zero: str = field(default_factory=lambda: _env('N8N_WORKFLOW_ZERO'))
     # false only as a stopgap while n8n's certificate is broken (expired / self-signed)
     n8n_verify_tls: bool = field(default_factory=lambda: _env('N8N_VERIFY_TLS', 'true').lower() != 'false')
-    portal_user: str = field(default_factory=lambda: _env('PORTAL_USER'))
-    portal_password: str = field(default_factory=lambda: _env('PORTAL_PASSWORD'))
 
 
 settings = Settings()
