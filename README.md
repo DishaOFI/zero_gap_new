@@ -19,14 +19,14 @@ Open http://localhost:8000
 
 If Approve / Reject in the portal shows an error, approve from the review e-mail – newer n8n versions sign the resume link.
 
-## Deploy on Render (free tier)
-1. Push this folder to a GitHub/GitLab repo (`.env` is git-ignored – never commit it).
-2. Render → **New → Blueprint** → pick the repo. It reads `render.yaml` (free Python web service).
-3. Fill in the prompted secrets: `N8N_API_KEY`, `N8N_WORKFLOW_ARIS`, `N8N_WORKFLOW_ZERO`,
-   and `PORTAL_USER` / `PORTAL_PASSWORD` (browser login – strongly recommended, the portal shows applicant data).
-4. Open `https://<service>.onrender.com`.
-
-Free instances sleep after 15 min without traffic; the first request afterwards takes ~1 min.
+## Deploy on Railway
+One service runs everything: the Python server also serves the pages.
+1. Push this folder to a GitHub repo (`.env` is git-ignored – never commit it).
+2. Railway → **New Project → Deploy from GitHub repo** → pick the repo. `railway.json` sets the start command and health check.
+3. **Variables**: `N8N_URL`, `N8N_API_KEY`, `N8N_WORKFLOW_ARIS`, `N8N_WORKFLOW_ZERO`, and `PORTAL_USER` / `PORTAL_PASSWORD`
+   (browser login – strongly recommended, the portal shows applicant data).
+4. **Volume**: add one mounted at `/data` and set `CASE_MEMORY_FILE=/data/.case_memory.json`, so the last cases survive a redeploy.
+5. **Settings → Networking → Generate Domain**, then open the URL.
 
 ## Language
 The portal is in German by default; the **DE | EN** switch in the header changes it (remembered per browser, or use `?lang=en` / `?lang=de` in a link).

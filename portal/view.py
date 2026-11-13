@@ -1,6 +1,6 @@
 """Turns n8n executions of the two Zero Gap Agent flows into the progress + review data the portal shows."""
 from __future__ import annotations
-import json, re, threading, time
+import json, os, re, threading, time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -225,7 +225,7 @@ def _shown(c: dict) -> bool:
 REMEMBER = 25
 RECHECK = 20   # seconds before a remembered case is looked up in n8n again
 _checked: dict[str, float] = {}   # execution id -> when n8n last confirmed it still exists
-_MEMORY_FILE = Path(__file__).resolve().parent.parent / '.case_memory.json'
+_MEMORY_FILE = Path(os.environ.get('CASE_MEMORY_FILE') or Path(__file__).resolve().parent.parent / '.case_memory.json')   # on a host with a volume: CASE_MEMORY_FILE=/data/.case_memory.json
 _memory: dict | None = None
 _memory_lock = threading.Lock()
 

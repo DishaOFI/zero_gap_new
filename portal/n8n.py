@@ -38,7 +38,7 @@ class N8nBackend:
 
     def _check(self) -> None:
         if not (self.s.n8n_url and self.s.n8n_api_key):
-            raise RuntimeError('N8N_URL and N8N_API_KEY are not set (.env locally, or Environment on Render)')
+            raise RuntimeError('N8N_URL and N8N_API_KEY are not set (.env locally, or Variables on Railway)')
 
     def _get(self, path: str, params: dict) -> dict:
         self._check()
