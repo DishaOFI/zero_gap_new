@@ -63,6 +63,13 @@ def _wording(text, de=False):
     return re.sub(r'^GP \(Hausarzt\) name and address missing\.?\s*(?:\(per ([^)]+)\))?', lambda m: 'General practitioner name and address missing.' + (f" (as per {m[1]})" if m[1] else ''), text)
 
 
+def _facts(facts, de=False):
+    """The case facts, with a deadline the flow could not calculate shown as 'not known' instead of 'undefined working days'."""
+    unknown = 'Verbleibende Arbeitstage nicht bekannt' if de else 'Remaining working days not known'
+    return [[k, unknown if isinstance(v, str) and re.search(r'undefined\s+(Arbeitstage|working days)|\(undefined', v) else v]
+            for k, v in facts] if isinstance(facts, list) else facts
+
+
 def _letter(text, de=False, route=None, who=None):
     """Outreach letter as shown in the portal, one format for both agents: the requested items, numbered, in a short letter.
     (Display only – what is actually sent is written by the n8n flow.)"""
@@ -85,6 +92,8 @@ def _letter(text, de=False, route=None, who=None):
     items = [f"{n}. {i[:1].upper()}{i[1:]}." for n, i in enumerate(items, 1)]
     hello = re.search(r'(?m)^[ \t]*(?:Dear|Sehr geehrte[r]?|Guten Tag)\s+(.+?),[ \t]*$', text)
     to = hello.group(1) if hello else who
+    if to and to.strip().lower() in ('the applicant', 'applicant', 'der antragsteller', 'antragsteller/in'):   # the flow had no name to greet
+        to = 'Antragsteller' if de else 'Applicant'
     me = bool(who) and to == who   # the letter goes to the applicant themselves
     body = '\n'.join(items)
     if de:
@@ -188,11 +197,11 @@ def _case(run: dict, steps: list[dict]) -> dict:
             'summary': drafts.get('escalation_summary') if (not zero and drafts.get('draft_source') == 'llm') else None,
             'dispatch': (pd or {}).get('dispatch') or r.get('dispatch'),
             'extra_facts': r.get('extra_facts') or [],
-            'facts': (dn or {}).get('review_facts'),
+            'facts': _facts((dn or {}).get('review_facts')),
             # German versions written by the flows (missing in runs from before they became bilingual)
             'de': {
                 'letter': _letter(drafts.get('escalation_summary_de') if r.get('route') == 'escalation' else drafts.get('outreach_letter_de'), True, r.get('route'), who),
-                'facts': (dn or {}).get('review_facts_de'),
+                'facts': _facts((dn or {}).get('review_facts_de'), True),
                 'extra_facts': r.get('extra_facts_de'),
                 'blocking': [_wording(f.get('message_de'), True) for f in r.get('hard_failures') or []],
                 'checks': [_wording(f.get('message_de'), True) for f in r.get('soft_warnings') or []],
